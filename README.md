@@ -30,6 +30,7 @@ ChoiceBro is a real‑time price comparison tool for New Zealand shoppers. Enter
 ```bash
 # 1. Clone the repository
 git clone https://github.com/AungKhantKyaw/choice_bro.git
+
 cd choice_bro
 
 # 2. Install dependencies

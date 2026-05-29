@@ -31,20 +31,39 @@ export default function Home() {
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!query.trim()) return;
-
+    
     setLoading(true);
-    setError("");
+    setError('');
     setProducts([]);
-
+    
     try {
-      const res = await fetch("/api/search", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: query.trim() }),
+      // 1. Pass the casual user phrase to our free Gemini API route
+      const aiRes = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: query.trim() })
       });
+      
+      if (!aiRes.ok) throw new Error('AI parsing failed');
+      const searchConfig = await aiRes.json(); // This contains { product, maxPrice, storePreference }
+
+      // 2. Pass the clean, extracted product keyword directly to your existing search orchestrator
+      const res = await fetch('/api/search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: searchConfig.product }) 
+      });
+      
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Search failed");
-      setProducts(data.products);
+      if (!res.ok) throw new Error(data.error || 'Search failed');
+      
+      // 3. Optional client-side client filtering if the user stated a budget max
+      let finalProducts = data.products;
+      if (searchConfig.maxPrice) {
+        finalProducts = finalProducts.filter((p: Product) => p.price <= searchConfig.maxPrice);
+      }
+      
+      setProducts(finalProducts);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -109,17 +128,6 @@ export default function Home() {
         shadow: "shadow-[0_8px_30px_rgb(239,68,68,0.25)]",
       };
     }
-    if (name.includes("eb games") || name.includes("ebgames")) {
-      return {
-        border: "border-indigo-500 focus-within:ring-indigo-400",
-        badgeBg: "bg-indigo-50 border-indigo-200",
-        badgeText: "text-indigo-700",
-        priceText: "text-indigo-700",
-        btnBg:
-          "bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-indigo-200 hover:brightness-105",
-        shadow: "shadow-[0_8px_30px_rgb(99,102,241,0.25)]",
-      };
-    }
     return {
       border: "border-purple-400 focus-within:ring-purple-400",
       badgeBg: "bg-purple-50 border-purple-200",
@@ -159,8 +167,8 @@ export default function Home() {
           </span>
         </h1>
 
-        <p className="bg-gradient-to-r from-rose-400 via-fuchsia-500 to-purple-600 bg-clip-text text-transparent font-extrabold text-sm sm:text-base tracking-wide bg-rose-50/50 px-4 py-1.5 rounded-full inline-block border border-rose-100 shadow-sm">
-          Suss out the cheapest deals instantly...
+        <p className="bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-600 bg-clip-text text-transparent font-extrabold text-sm sm:text-base tracking-wide bg-purple-50/50 px-4 py-1.5 rounded-full inline-block border border-purple-100 shadow-sm">
+          Powered by AI. Type like a human, hunt bargains like a pro.
         </p>
       </header>
 
@@ -189,7 +197,7 @@ export default function Home() {
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="What are we looking for? (e.g., Nintendo Switch, Air Fryer, iPad)"
+            placeholder="Try: 'find a mechanical keyboard under $150' or 'Find out a cheap iPad'..."
             className="w-full py-3 bg-transparent font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none pr-24 sm:pr-36"
             disabled={loading}
             aria-label="Search products"
@@ -204,6 +212,25 @@ export default function Home() {
             </button>
           </div>
         </form>
+
+        <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Try asking:</span>
+          
+          {[
+            "Find a monitor under $300 bucks",
+            "Suss out a Nintendo Switch at JB Hi-Fi",
+            "Cheap logitech gaming mouse"
+          ].map((suggestion, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => setQuery(suggestion)}
+              className="text-xs bg-slate-100 hover:bg-amber-100 hover:text-amber-900 border border-slate-200 hover:border-amber-300 text-slate-600 font-medium px-3 py-1.5 rounded-xl transition-all duration-200 active:scale-95"
+            >
+              "{suggestion}"
+            </button>
+          ))}
+        </div>        
 
         {loading && (
           <div className="flex items-center justify-center gap-3 mt-6 text-slate-600 font-semibold text-sm animate-pulse bg-white/60 py-2.5 px-4 rounded-xl border border-sky-100 w-max mx-auto shadow-sm">
