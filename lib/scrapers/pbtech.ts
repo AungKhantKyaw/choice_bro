@@ -1,31 +1,48 @@
-import puppeteer from "puppeteer";
 import { Product } from "../types";
+import { getBrowser } from "../browser";
+import { retry } from "../utils/retry";
 
 export async function searchPBtech(query: string): Promise<Product[]> {
   const searchUrl = `https://www.pbtech.co.nz/search?sf=${encodeURIComponent(query)}`;
   console.log(`[PB Tech] Scraping: ${searchUrl}`);
+  const browser = await getBrowser();
+  const page = await browser.newPage();
 
-  let browser;
   try {
-    browser = await puppeteer.launch({
-      headless: true,
-      args: ["--no-sandbox", "--disable-setuid-sandbox"],
-    });
-    const page = await browser.newPage();
-
     page.on("console", (msg) => {
       for (let i = 0; i < msg.args().length; ++i) {
         console.log(`[Browser] ${msg.args()[i]}`);
       }
     });
 
+    await page.setRequestInterception(true);
+
+    page.on("request", (req) => {
+      const type = req.resourceType();
+
+      if (
+        ["image", "stylesheet", "font", "media"].includes(type)
+      ) {
+        req.abort();
+      } else {
+        req.continue();
+      }
+    });
+
     await page.setUserAgent(
       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
     );
-    await page.goto(searchUrl, { waitUntil: "networkidle2", timeout: 30000 });
-    await page
-      .waitForSelector(".products-view", { timeout: 10000 })
-      .catch(() => null);
+
+    await retry(async () => {
+      await page.goto(searchUrl, {
+        waitUntil: "domcontentloaded",
+        timeout: 30000,
+      });
+
+      await page.waitForSelector(".products-view", {
+        timeout: 10000,
+      });
+    }, 2);
 
     const products = await page.evaluate(() => {
       const items: { title: string; price: number; url: string }[] = [];
@@ -80,6 +97,6 @@ export async function searchPBtech(query: string): Promise<Product[]> {
     console.error(`PB Tech error:`, error);
     return [];
   } finally {
-    if (browser) await browser.close();
+    await page.close();
   }
 }

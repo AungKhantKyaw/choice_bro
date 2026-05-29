@@ -1,5 +1,6 @@
-import puppeteer from "puppeteer";
 import { Product } from "../types";
+import { getBrowser } from "../browser";
+import { retry } from "../utils/retry";
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -8,22 +9,37 @@ export async function searchHarveyNorman(query: string): Promise<Product[]> {
   const searchUrl = `https://www.harveynorman.co.nz/index.php?subcats=Y&status=A&pshort=N&pfull=N&pname=Y&pkeywords=Y&search_performed=Y&q=${encodeURIComponent(query)}&dispatch=products.search`;
   console.log(`[Harvey Norman] Scraping: ${searchUrl}`);
 
-  let browser;
-  try {
-    browser = await puppeteer.launch({
-      headless: true,
-      args: ["--no-sandbox", "--disable-setuid-sandbox"],
-    });
-    const page = await browser.newPage();
+  const browser = await getBrowser();
+  const page = await browser.newPage();
+  try {   
     await page.setUserAgent(
       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
     );
-    await page.goto(searchUrl, { waitUntil: "networkidle2", timeout: 30000 });
 
-    // Wait for at least one product container to load
-    await page
-      .waitForSelector(".hproduct-col", { timeout: 15000 })
-      .catch(() => null);
+    await retry(async () => {
+      await page.goto(searchUrl, {
+        waitUntil: "domcontentloaded",
+        timeout: 30000,
+      });
+
+      await page.waitForSelector(".hproduct-col", {
+        timeout: 10000,
+      });
+    }, 2);  
+
+    await page.setRequestInterception(true);
+
+    page.on("request", (req) => {
+      const type = req.resourceType();
+
+      if (
+        ["image", "stylesheet", "font", "media"].includes(type)
+      ) {
+        req.abort();
+      } else {
+        req.continue();
+      }
+    });
 
     await delay(2000);
 
@@ -95,6 +111,6 @@ export async function searchHarveyNorman(query: string): Promise<Product[]> {
     console.error(`Harvey Norman error:`, error);
     return [];
   } finally {
-    if (browser) await browser.close();
+    await page.close();
   }
 }

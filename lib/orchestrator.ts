@@ -2,12 +2,15 @@ import { searchPBtech } from "./scrapers/pbtech";
 import { searchHarveyNorman } from "./scrapers/harveyNorman";
 import { searchJbhifi } from "./scrapers/jbhifi";
 import { Product } from "./types";
+import { withTimeout } from "./utils/timeout";
 
 export async function searchAllRetailers(query: string): Promise<Product[]> {
   const scrapers = [searchPBtech, searchHarveyNorman, searchJbhifi];
 
   const results = await Promise.allSettled(
-    scrapers.map((scraper) => scraper(query)),
+    scrapers.map((scraper) =>
+      withTimeout(scraper(query), 15000)
+    )
   );
 
   const allProducts: Product[] = [];

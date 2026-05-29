@@ -27,43 +27,57 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [sortBy, setSortBy] = useState<SortOrder>("cheapest");
+  const [verdict, setVerdict] = useState<{ summary: string; bestStore: string; dealRating: string; broAdvice: string } | null>(null);
+  const [loadingVerdict, setLoadingVerdict] = useState(false);
 
-  const handleSearch = async (e: React.FormEvent) => {
+const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!query.trim()) return;
     
     setLoading(true);
     setError('');
     setProducts([]);
+    setVerdict(null);
     
-    try {
-      // 1. Pass the casual user phrase to our free Gemini API route
+    try {      
       const aiRes = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: query.trim() })
       });
-      
       if (!aiRes.ok) throw new Error('AI parsing failed');
-      const searchConfig = await aiRes.json(); // This contains { product, maxPrice, storePreference }
-
-      // 2. Pass the clean, extracted product keyword directly to your existing search orchestrator
+      const searchConfig = await aiRes.json();
+      
       const res = await fetch('/api/search', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query: searchConfig.product }) 
       });
-      
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Search failed');
       
-      // 3. Optional client-side client filtering if the user stated a budget max
       let finalProducts = data.products;
       if (searchConfig.maxPrice) {
         finalProducts = finalProducts.filter((p: Product) => p.price <= searchConfig.maxPrice);
       }
       
       setProducts(finalProducts);
+     
+      if (finalProducts.length > 0) {
+        setLoadingVerdict(true);
+        fetch('/api/verdict', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ products: finalProducts, query: searchConfig.product })
+        })
+          .then(vRes => vRes.json())
+          .then(vData => {
+            if (!vData.error) setVerdict(vData);
+          })
+          .catch(err => console.error(err))
+          .finally(() => setLoadingVerdict(false));
+      }
+
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -275,6 +289,60 @@ export default function Home() {
           </div>
         )}
       </div>
+
+      {/* DYNAMIC AI BRO'S VERDICT BOX MODULE */}
+      {(loadingVerdict || verdict) && (
+        <div className="bg-gradient-to-br from-indigo-900 via-slate-900 to-purple-950 text-white rounded-3xl p-6 border border-indigo-500/30 shadow-xl transition-all duration-300">
+          <div className="flex items-center justify-between border-b border-indigo-500/20 pb-3 mb-4">
+            <div className="flex items-center gap-2.5">
+              <span className="text-2xl animate-pulse">🤖</span>
+              <div>
+                <h3 className="font-black tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-amber-300 text-sm sm:text-base">
+                  BRO'S AI VERDICT
+                </h3>
+                <p className="text-[10px] text-indigo-300 font-bold uppercase tracking-widest">Real-time Deal Analysis</p>
+              </div>
+            </div>
+            
+            {verdict && (
+              <span className="bg-indigo-500/20 border border-indigo-400/30 text-amber-300 font-black text-xs px-3 py-1 rounded-full uppercase tracking-wider">
+                Score: {verdict.dealRating}
+              </span>
+            )}
+          </div>
+
+          {loadingVerdict ? (
+            <div className="flex items-center gap-3 text-slate-300 py-2">
+              <div className="w-2 h-2 bg-pink-500 rounded-full animate-bounce" />
+              <div className="w-2 h-2 bg-purple-500 rounded-full animate-bounce [animation-delay:0.2s]" />
+              <div className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce [animation-delay:0.4s]" />
+              <p className="text-xs font-semibold text-indigo-200/80 italic">Bro is running the numbers across NZ retail sites...</p>
+            </div>
+          ) : (
+            verdict && (
+              <div className="space-y-3.5">
+                <p className="text-sm text-slate-200 leading-relaxed font-medium">
+                  "{verdict.summary}"
+                </p>
+                <div className="bg-white/5 border border-white/10 rounded-xl p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <span className="block text-[10px] text-indigo-300 font-bold uppercase tracking-wider">Prime Value Target</span>
+                    <span className="text-xs font-black text-white bg-indigo-600/50 px-2 py-0.5 rounded-md border border-indigo-400/30 mt-0.5 inline-block uppercase">
+                      🏬 {verdict.bestStore}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="block text-[10px] text-amber-400 font-bold uppercase tracking-wider sm:text-right">Tactical Advice</span>
+                    <p className="text-xs font-black text-amber-300 italic sm:text-right mt-0.5">
+                      👉 {verdict.broAdvice}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )
+          )}
+        </div>
+      )}
 
       {/* Main Results Container */}
       {products.length > 0 && (

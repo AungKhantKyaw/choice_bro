@@ -1,5 +1,6 @@
-import puppeteer from "puppeteer";
 import { Product } from "../types";
+import { getBrowser } from "../browser";
+import { retry } from "../utils/retry";
 
 // Helper function to delay execution
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -8,22 +9,38 @@ export async function searchJbhifi(query: string): Promise<Product[]> {
   const searchUrl = `https://www.jbhifi.co.nz/search?query=${encodeURIComponent(query)}`;
   console.log(`[JB Hi-Fi] Scraping: ${searchUrl}`);
 
-  let browser;
+  const browser = await getBrowser();
+  const page = await browser.newPage();
   try {
-    browser = await puppeteer.launch({
-      headless: true,
-      args: ["--no-sandbox", "--disable-setuid-sandbox"],
-    });
-    const page = await browser.newPage();
+       
     await page.setUserAgent(
       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
     );
-    await page.goto(searchUrl, { waitUntil: "networkidle2", timeout: 30000 });
+    
+    await retry(async () => {
+      await page.goto(searchUrl, {
+        waitUntil: "domcontentloaded",
+        timeout: 30000,
+      });
 
-    // Wait for at least one product card to appear
-    await page
-      .waitForSelector(".ProductCard", { timeout: 15000 })
-      .catch(() => null);
+      await page.waitForSelector(".ProductCard", {
+        timeout: 10000,
+      });
+    }, 2);   
+
+    await page.setRequestInterception(true);
+
+    page.on("request", (req) => {
+      const type = req.resourceType();
+
+      if (
+        ["image", "stylesheet", "font", "media"].includes(type)
+      ) {
+        req.abort();
+      } else {
+        req.continue();
+      }
+    });
 
     // Give extra time for any lazy content – using custom delay
     await delay(2000);
@@ -88,6 +105,6 @@ export async function searchJbhifi(query: string): Promise<Product[]> {
     console.error(`JB Hi-Fi error:`, error);
     return [];
   } finally {
-    if (browser) await browser.close();
+    await page.close();
   }
 }
