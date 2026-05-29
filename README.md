@@ -12,13 +12,12 @@ ChoiceBro is a real‑time price comparison tool for New Zealand shoppers. Enter
 
 ## ✨ Features
 
-- 🔍 **Real‑time search** – scrapes retailers on demand
-- 🏬 **Multi‑retailer support** – PB Tech, Harvey Norman, JB Hi‑Fi (Noel Leeming and Mighty Ape ready but behind Cloudflare)
-- 💰 **Smart sorting** – cheapest first or group by store
-- 🎨 **Store‑specific theming** – each retailer gets its own colour scheme
-- 📱 **Fully responsive** – works great on mobile, tablet, and desktop
-- ⚡ **Fast, lightweight** – no heavy frameworks, just Next.js + Tailwind
-- 🧠 **Clever caching** – in‑memory cache to reduce repeated scraping (5 minutes TTL)
+- **Real‑time search** – scrapes retailers on demand
+- **Multi‑retailer support** – PB Tech, Harvey Norman, JB Hi‑Fi
+- **Smart sorting** – cheapest first or group by store
+- **Store‑specific theming** – each retailer gets its own colour scheme
+- **Fully responsive** – works great on mobile, tablet, and desktop
+- **Fast, lightweight** – no heavy frameworks, just Next.js + Tailwind
 
 ## 📦 Installation
 
