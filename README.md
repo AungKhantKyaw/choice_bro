@@ -65,7 +65,7 @@ choice_bro/
 ├── tsconfig.json
 ├── tailwind.config.js
 └── README.md
-
+```
 
 # 🤙 Just a heads up, bro! (Disclaimer)
 ChoiceBro is an entirely non-commercial, free project built for the love of coding and bargain hunting. I don't earn a single cent off this application!
