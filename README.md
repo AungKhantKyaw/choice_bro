@@ -4,13 +4,13 @@
 
 ![NZ Price Compare Screenshot](screenshot.png)
 
-## 🌟 Overview
+## Overview
 
 ChoiceBro is a real‑time price comparison tool for New Zealand shoppers. Enter any product, and it scrapes live prices from multiple local retailers, then presents them in a fun, Kiwi‑flavoured UI. No database, no history – just fresh prices every time.
 
 **Live demo:** [Coming soon](#)
 
-## ✨ Features
+## Features
 
 - **Real‑time search** – scrapes retailers on demand
 - **Multi‑retailer support** – PB Tech, Harvey Norman, JB Hi‑Fi
