@@ -44,7 +44,8 @@ npm run dev
 
 # Project Structure
 
-choicebro-nz-price-compare/
+```text
+choice_bro/
 ├── app/
 │   ├── api/
 │   │   └── search/
