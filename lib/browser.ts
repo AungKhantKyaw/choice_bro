@@ -13,5 +13,23 @@ export async function getBrowser(): Promise<Browser> {
     ],
   });
 
+  // Setup graceful shutdown handlers
+  const cleanup = async () => {
+    if (browser) {
+      await browser.close();
+      browser = null;
+    }
+  };
+
+  process.on("exit", cleanup);
+  process.on("SIGINT", async () => {
+    await cleanup();
+    process.exit();
+  });
+  process.on("SIGTERM", async () => {
+    await cleanup();
+    process.exit();
+  });
+
   return browser;
 }

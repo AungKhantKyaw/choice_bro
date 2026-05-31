@@ -72,9 +72,17 @@ const handleSearch = async (e: React.FormEvent) => {
         })
           .then(vRes => vRes.json())
           .then(vData => {
-            if (!vData.error) setVerdict(vData);
+            if (!vData.error) {
+              setVerdict(vData);
+            } else {
+              console.error('Verdict error:', vData.error);
+              // Silently fail - verdict is optional enhancement
+            }
           })
-          .catch(err => console.error(err))
+          .catch(err => {
+            console.error('Verdict fetch failed:', err);
+            // Clear the "loading verdict" state but don't show error - it's optional
+          })
           .finally(() => setLoadingVerdict(false));
       }
 

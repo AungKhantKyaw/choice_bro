@@ -1,6 +1,7 @@
 import { Product } from "../types";
 import { getBrowser } from "../browser";
 import { retry } from "../utils/retry";
+import { setupScraperPage } from "../utils/scraper-helpers";
 
 export async function searchPBtech(query: string): Promise<Product[]> {
   const searchUrl = `https://www.pbtech.co.nz/search?sf=${encodeURIComponent(query)}`;
@@ -9,29 +10,8 @@ export async function searchPBtech(query: string): Promise<Product[]> {
   const page = await browser.newPage();
 
   try {
-    page.on("console", (msg) => {
-      for (let i = 0; i < msg.args().length; ++i) {
-        console.log(`[Browser] ${msg.args()[i]}`);
-      }
-    });
-
-    await page.setRequestInterception(true);
-
-    page.on("request", (req) => {
-      const type = req.resourceType();
-
-      if (
-        ["image", "stylesheet", "font", "media"].includes(type)
-      ) {
-        req.abort();
-      } else {
-        req.continue();
-      }
-    });
-
-    await page.setUserAgent(
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    );
+    // Setup optimizations BEFORE navigation
+    await setupScraperPage(page);
 
     await retry(async () => {
       await page.goto(searchUrl, {
@@ -59,7 +39,7 @@ export async function searchPBtech(query: string): Promise<Product[]> {
         );
         const title = titleElem?.textContent?.trim().replace(/\s+/g, " ") || "";
 
-        // Price: prefer .ginc (incl GST), fallback to .full-price
+        // Price: prefer .ginc (incl GST), fallback to .gex
         const priceBlock = card.querySelector(".item-price-amount");
         const gincPrice = priceBlock?.querySelector(".ginc .full-price");
         const gexPrice = priceBlock?.querySelector(".gex .full-price");

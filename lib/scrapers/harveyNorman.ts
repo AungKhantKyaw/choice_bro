@@ -1,20 +1,17 @@
 import { Product } from "../types";
 import { getBrowser } from "../browser";
 import { retry } from "../utils/retry";
-
-const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+import { setupScraperPage, delay } from "../utils/scraper-helpers";
 
 export async function searchHarveyNorman(query: string): Promise<Product[]> {
-  // Full working search URL with all parameters
   const searchUrl = `https://www.harveynorman.co.nz/index.php?subcats=Y&status=A&pshort=N&pfull=N&pname=Y&pkeywords=Y&search_performed=Y&q=${encodeURIComponent(query)}&dispatch=products.search`;
   console.log(`[Harvey Norman] Scraping: ${searchUrl}`);
 
   const browser = await getBrowser();
   const page = await browser.newPage();
-  try {   
-    await page.setUserAgent(
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    );
+  try {
+    // Setup optimizations BEFORE navigation (fixes race condition)
+    await setupScraperPage(page);
 
     await retry(async () => {
       await page.goto(searchUrl, {
@@ -25,66 +22,40 @@ export async function searchHarveyNorman(query: string): Promise<Product[]> {
       await page.waitForSelector(".hproduct-col", {
         timeout: 10000,
       });
-    }, 2);  
-
-    await page.setRequestInterception(true);
-
-    page.on("request", (req) => {
-      const type = req.resourceType();
-
-      if (
-        ["image", "stylesheet", "font", "media"].includes(type)
-      ) {
-        req.abort();
-      } else {
-        req.continue();
-      }
-    });
+    }, 2);
 
     await delay(2000);
 
     const products = await page.evaluate(() => {
       const items: { title: string; price: number; url: string }[] = [];
 
-      // Each product is inside a div with class "hproduct-col product-col clearfix"
       const productContainers = document.querySelectorAll(".hproduct-col");
 
       for (let i = 0; i < Math.min(productContainers.length, 10); i++) {
         const container = productContainers[i];
 
-        // Title – inside <a class="product-title product_link_...">
         const titleLink = container.querySelector(".product-title");
         const title = titleLink?.textContent?.trim() || "";
 
-        // Price – inside <span class="price"> or <span class="price special-active">
         const priceSpan = container.querySelector(".price");
         let price = 0;
         if (priceSpan) {
-          // Price text can be like "$1,347" or "$699" inside .price-num spans
-          // The .price element contains multiple spans, but we can get its full text
           const priceText = priceSpan.textContent?.trim() || "";
-          // Extract numeric value (handles $1,347, $699, $1,284.00)
           const match = priceText.match(/\$?([\d,]+\.?\d*)/);
           if (match) {
             price = parseFloat(match[1].replace(/,/g, ""));
           }
         }
 
-        // URL – from the same title link
         let url = "";
         if (titleLink) {
           const href = titleLink.getAttribute("href");
           if (href) {
-            // Handle protocol-relative URLs (//example.com/path)
             if (href.startsWith("//")) {
               url = `https:${href}`;
-            }
-            // Handle relative URLs (/path)
-            else if (href.startsWith("/")) {
+            } else if (href.startsWith("/")) {
               url = `https://www.harveynorman.co.nz${href}`;
-            }
-            // Already absolute URL
-            else if (href.startsWith("http")) {
+            } else if (href.startsWith("http")) {
               url = href;
             }
           }
