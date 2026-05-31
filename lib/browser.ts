@@ -1,9 +1,35 @@
 import puppeteer, { Browser } from "puppeteer";
 
 let browser: Browser | null = null;
+let handlersRegistered = false;
+
+async function cleanup() {
+  if (browser) {
+    await browser.close();
+    browser = null;
+  }
+}
+
+function registerHandlers() {
+  if (handlersRegistered) return;
+
+  handlersRegistered = true;
+
+  process.on("SIGINT", async () => {
+    await cleanup();
+    process.exit(0);
+  });
+
+  process.on("SIGTERM", async () => {
+    await cleanup();
+    process.exit(0);
+  });
+}
 
 export async function getBrowser(): Promise<Browser> {
-  if (browser) return browser;
+  if (browser?.connected) {
+    return browser;
+  }
 
   browser = await puppeteer.launch({
     headless: true,
@@ -13,23 +39,11 @@ export async function getBrowser(): Promise<Browser> {
     ],
   });
 
-  // Setup graceful shutdown handlers
-  const cleanup = async () => {
-    if (browser) {
-      await browser.close();
-      browser = null;
-    }
-  };
+  browser.on("disconnected", () => {
+    browser = null;
+  });
 
-  process.on("exit", cleanup);
-  process.on("SIGINT", async () => {
-    await cleanup();
-    process.exit();
-  });
-  process.on("SIGTERM", async () => {
-    await cleanup();
-    process.exit();
-  });
+  registerHandlers();
 
   return browser;
 }
