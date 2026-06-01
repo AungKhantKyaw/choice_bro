@@ -12,6 +12,7 @@ build/
 logs/
 *.log
 .next/
+.cache/
 
 .DS_Store
 Thumbs.db
