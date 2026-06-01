@@ -29,21 +29,24 @@ export default function Home() {
   const [sortBy, setSortBy] = useState<SortOrder>("cheapest");
   const [verdict, setVerdict] = useState<{ summary: string; bestStore: string; dealRating: string; broAdvice: string } | null>(null);
   const [loadingVerdict, setLoadingVerdict] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
 
-const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!query.trim()) return;
+  const handleSearch = async (e?: React.FormEvent, customQuery?: string) => {
+    if (e) e.preventDefault();
+    const activeQuery = customQuery !== undefined ? customQuery : query;
+    if (!activeQuery.trim()) return;
     
     setLoading(true);
     setError('');
     setProducts([]);
     setVerdict(null);
+    setHasSearched(false);
     
     try {      
       const aiRes = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: query.trim() })
+        body: JSON.stringify({ message: activeQuery.trim() })
       });
       if (!aiRes.ok) throw new Error('AI parsing failed');
       const searchConfig = await aiRes.json();
@@ -51,7 +54,10 @@ const handleSearch = async (e: React.FormEvent) => {
       const res = await fetch('/api/search', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: searchConfig.product }) 
+        body: JSON.stringify({ 
+          query: searchConfig.product,
+          storePreference: searchConfig.storePreference
+        }) 
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Search failed');
@@ -60,8 +66,19 @@ const handleSearch = async (e: React.FormEvent) => {
       if (searchConfig.maxPrice) {
         finalProducts = finalProducts.filter((p: Product) => p.price <= searchConfig.maxPrice);
       }
+      if (searchConfig.storePreference) {
+        const pref = searchConfig.storePreference.toLowerCase();
+        finalProducts = finalProducts.filter((p: Product) => {
+          const site = p.site.toLowerCase();
+          if (pref === "pbtech" && (site.includes("pb tech") || site.includes("pbtech"))) return true;
+          if (pref === "jbhifi" && (site.includes("jb hi-fi") || site.includes("jbhifi"))) return true;
+          if (pref === "harveynorman" && (site.includes("harvey norman") || site.includes("harvey"))) return true;
+          return false;
+        });
+      }
       
       setProducts(finalProducts);
+      setHasSearched(true);
      
       if (finalProducts.length > 0) {
         setLoadingVerdict(true);
@@ -218,7 +235,10 @@ const handleSearch = async (e: React.FormEvent) => {
           <input
             type="text"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setHasSearched(false);
+            }}
             placeholder="Try: 'find a mechanical keyboard under $150' or 'Find out a cheap iPad'..."
             className="w-full py-3 bg-transparent font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none pr-24 sm:pr-36"
             disabled={loading}
@@ -246,7 +266,10 @@ const handleSearch = async (e: React.FormEvent) => {
             <button
               key={i}
               type="button"
-              onClick={() => setQuery(suggestion)}
+              onClick={() => {
+                setQuery(suggestion);
+                handleSearch(undefined, suggestion);
+              }}
               className="text-xs bg-slate-100 hover:bg-amber-100 hover:text-amber-900 border border-slate-200 hover:border-amber-300 text-slate-600 font-medium px-3 py-1.5 rounded-xl transition-all duration-200 active:scale-95"
             >
               "{suggestion}"
@@ -285,7 +308,7 @@ const handleSearch = async (e: React.FormEvent) => {
           </div>
         )}
 
-        {!loading && products.length === 0 && query && !error && (
+        {!loading && products.length === 0 && hasSearched && !error && (
           <div className="mt-8 text-center py-10 bg-white/80 backdrop-blur-sm rounded-2xl border-2 border-dashed border-sky-200 shadow-sm max-w-lg mx-auto">
             <p className="text-slate-600 font-bold">
               Nothing popped up for that term, bro.

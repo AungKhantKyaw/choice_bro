@@ -4,7 +4,7 @@ import { searchAllRetailers } from "@/lib/orchestrator";
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { query } = body;
+    const { query, storePreference } = body;
 
     if (!query || typeof query !== "string" || query.trim().length < 2) {
       return NextResponse.json(
@@ -13,8 +13,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log(`Searching for: ${query}`);
-    const products = await searchAllRetailers(query.trim());
+    console.log(`Searching for: ${query} (storePreference: ${storePreference || "none"})`);
+    const products = await searchAllRetailers(query.trim(), storePreference);
 
     return NextResponse.json({ products });
   } catch (error) {
