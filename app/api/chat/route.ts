@@ -30,7 +30,7 @@ export async function POST(request: Request) {
 
     // Request text generation with structural configuration adjustments
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash', // Using updated stable model identifier
+      model: 'gemini-2.5-flash-lite', // Using updated stable model identifier
       contents: message,
       config: {
         systemInstruction: systemInstruction,
