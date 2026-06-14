@@ -38,7 +38,7 @@ export async function searchAllGroceries(query: string, storePreference?: string
   
   const results = await Promise.allSettled(
     scrapers.map((s) =>
-      withTimeout(s.search(query), 18000)
+      withTimeout(s.search(query), 45000)
     )
   );
 
@@ -51,10 +51,40 @@ export async function searchAllGroceries(query: string, storePreference?: string
     }
   }
 
+  // Define generic grocery words to ignore when extracting brand/specific keywords
+  const GENERIC_GROCERY_WORDS = new Set([
+    "butter", "milk", "cheese", "bread", "water", "juice", "salt", "sugar", 
+    "flour", "oil", "sauce", "powder", "drink", "cereal", "egg", "eggs", 
+    "paper", "bag", "bags", "soap", "noodle", "noodles", "rice", "pasta", 
+    "tea", "coffee", "jam", "spread", "food", "fresh", "pure", "white", 
+    "blue", "green", "red", "gold", "light", "product", "products", "item", "items",
+    "salted", "unsalted", "organic"
+  ]);
+
+  // Clean the query into lowercase words, stripping common punctuation
+  const queryWords = query
+    .toLowerCase()
+    .replace(/[^\w\s]/g, "")
+    .split(/\s+/)
+    .filter((w) => w.length > 2);
+
+  // Identify specific keywords in the search (e.g. brand names or specific descriptors)
+  const specificKeywords = queryWords.filter((w) => !GENERIC_GROCERY_WORDS.has(w));
+
+  // Filter products: if user searched for specific keywords (like "pams"), ensure they are present in the title
+  let filteredProducts = allProducts;
+  if (specificKeywords.length > 0) {
+    console.log(`[Grocery Filter] Requiring titles to contain: ${JSON.stringify(specificKeywords)}`);
+    filteredProducts = allProducts.filter((p) => {
+      const titleLower = p.title.toLowerCase().replace(/[^\w\s]/g, "");
+      return specificKeywords.every((keyword) => titleLower.includes(keyword));
+    });
+  }
+
   // Sort by price ascending
-  allProducts.sort((a, b) => a.price - b.price);
+  filteredProducts.sort((a, b) => a.price - b.price);
 
   // Save cache (expires in 4 hours)
-  await fileCache.set(cacheKey, allProducts);
-  return allProducts;
+  await fileCache.set(cacheKey, filteredProducts);
+  return filteredProducts;
 }

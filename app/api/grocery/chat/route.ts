@@ -62,12 +62,12 @@ export async function POST(request: Request) {
     const searchParameters = JSON.parse(aiText);
     return NextResponse.json(searchParameters);
 
-  } catch (error: any) {
+  } catch (error) {
     console.error('CRITICAL GEMINI GROCERY FAILURE:', error);
-    
+    const err = error as Error;
     return NextResponse.json({ 
       error: 'Failed to process AI query',
-      details: error.message || error.toString() 
+      details: err.message || String(error) 
     }, { status: 500 });
   }
 }

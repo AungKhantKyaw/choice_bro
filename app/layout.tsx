@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -20,7 +21,7 @@ export default function RootLayout({
         {/* Choice Navigation Header */}
         <header className="max-w-6xl mx-auto px-4 pt-8 sm:px-6 z-20 relative">
           <nav className="flex items-center justify-center gap-6 bg-white/75 backdrop-blur-md py-3 px-8 rounded-2xl border border-sky-200/50 shadow-md w-fit mx-auto transition-transform hover:scale-[1.01]">
-            <a 
+            <Link 
               href="/" 
               className="flex items-center gap-2 text-xs sm:text-sm font-black uppercase tracking-wider text-slate-700 hover:text-blue-600 transition-all active:scale-95"
             >
@@ -30,9 +31,9 @@ export default function RootLayout({
                 <line x1="12" y1="17" x2="12" y2="21" />
               </svg>
               Tech Deals
-            </a>
+            </Link>
             <span className="text-slate-200 font-light">|</span>
-            <a 
+            <Link 
               href="/grocery" 
               className="flex items-center gap-2 text-xs sm:text-sm font-black uppercase tracking-wider text-slate-700 hover:text-emerald-600 transition-all active:scale-95"
             >
@@ -41,7 +42,7 @@ export default function RootLayout({
                 <path d="M9 10c0-1.7 1.3-3 3-3" />
               </svg>
               Grocery Shop
-            </a>
+            </Link>
           </nav>
         </header>
 

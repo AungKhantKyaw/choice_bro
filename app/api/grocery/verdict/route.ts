@@ -75,12 +75,12 @@ export async function POST(request: Request) {
 
     return NextResponse.json(JSON.parse(aiText));
 
-  } catch (error: any) {   
+  } catch (error) {   
     console.error('GROCERY VERDICT GENERATION FAILURE:', error);
-    
+    const err = error as Error;
     return NextResponse.json({ 
       error: 'Failed to generate Bro verdict logic',
-      details: error.message || error.toString()
+      details: err.message || String(error)
     }, { status: 500 });
   }
 }

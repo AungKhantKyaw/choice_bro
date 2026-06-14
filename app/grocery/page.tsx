@@ -115,8 +115,9 @@ export default function GroceryPage() {
           })
           .finally(() => setLoadingVerdict(false));
       }
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      const errorObj = err as Error;
+      setError(errorObj.message || String(err));
     } finally {
       setLoading(false);
     }

@@ -15,11 +15,17 @@ export async function searchWoolworths(query: string): Promise<Product[]> {
     await retry(async () => {
       await page.goto(searchUrl, {
         waitUntil: "domcontentloaded",
-        timeout: 30000,
+        timeout: 15000,
       });
 
-      await page.waitForSelector(".product-entry", {
-        timeout: 15000,
+      // Wait for product cards or "0 Products"/"0 items" message to avoid timing out on empty searches
+      await page.waitForFunction(() => {
+        const hasProducts = document.querySelector(".product-entry") !== null;
+        const bodyText = document.body.textContent || "";
+        const hasNoResults = bodyText.includes("0 Products") || bodyText.includes("0 items");
+        return hasProducts || hasNoResults;
+      }, {
+        timeout: 30000,
       });
     }, 2);
 
