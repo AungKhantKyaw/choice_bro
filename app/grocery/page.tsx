@@ -21,7 +21,7 @@ interface StoreTheme {
   shadow: string;
 }
 
-export default function Home() {
+export default function GroceryPage() {
   const [query, setQuery] = useState("");
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
@@ -35,74 +35,86 @@ export default function Home() {
     if (e) e.preventDefault();
     const activeQuery = customQuery !== undefined ? customQuery : query;
     if (!activeQuery.trim()) return;
-    
+
     setLoading(true);
-    setError('');
+    setError("");
     setProducts([]);
     setVerdict(null);
     setHasSearched(false);
-    
-    try {      
-      const aiRes = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: activeQuery.trim() })
+
+    try {
+      // 1. Process search query through AI Grocery Chat Parser
+      const aiRes = await fetch("/api/grocery/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: activeQuery.trim() }),
       });
-      if (!aiRes.ok) throw new Error('AI parsing failed');
+      if (!aiRes.ok) throw new Error("AI parsing failed");
       const searchConfig = await aiRes.json();
-      
-      const res = await fetch('/api/search', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
+
+      // 2. Perform live search scraping
+      const res = await fetch("/api/grocery/search", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
           query: searchConfig.product,
-          storePreference: searchConfig.storePreference
-        }) 
+          storePreference: searchConfig.storePreference,
+        }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Search failed');
-      
+      if (!res.ok) throw new Error(data.error || "Search failed");
+
       let finalProducts = data.products;
+
+      // Filter by AI maxPrice if provided
       if (searchConfig.maxPrice) {
         finalProducts = finalProducts.filter((p: Product) => p.price <= searchConfig.maxPrice);
       }
+
+      // Filter by store preference on client side as fallback
       if (searchConfig.storePreference) {
         const pref = searchConfig.storePreference.toLowerCase();
         finalProducts = finalProducts.filter((p: Product) => {
           const site = p.site.toLowerCase();
-          if (pref === "pbtech" && (site.includes("pb tech") || site.includes("pbtech"))) return true;
-          if (pref === "jbhifi" && (site.includes("jb hi-fi") || site.includes("jbhifi"))) return true;
-          if (pref === "harveynorman" && (site.includes("harvey norman") || site.includes("harvey"))) return true;
+          if (pref === "woolworths" && site.includes("woolworths")) return true;
+          if (
+            (pref === "paknsave" || pref === "pak n save" || pref === "pak'nsave") &&
+            site.includes("pak")
+          )
+            return true;
+          if (
+            (pref === "newworld" || pref === "new world") &&
+            site.includes("new world")
+          )
+            return true;
           return false;
         });
       }
-      
+
       setProducts(finalProducts);
       setHasSearched(true);
-     
+
+      // 3. Request AI Grocery Verdict if products were found
       if (finalProducts.length > 0) {
         setLoadingVerdict(true);
-        fetch('/api/verdict', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ products: finalProducts, query: searchConfig.product })
+        fetch("/api/grocery/verdict", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ products: finalProducts, query: searchConfig.product }),
         })
-          .then(vRes => vRes.json())
-          .then(vData => {
+          .then((vRes) => vRes.json())
+          .then((vData) => {
             if (!vData.error) {
               setVerdict(vData);
             } else {
-              console.error('Verdict error:', vData.error);
-              // Silently fail - verdict is optional enhancement
+              console.error("Verdict error:", vData.error);
             }
           })
-          .catch(err => {
-            console.error('Verdict fetch failed:', err);
-            // Clear the "loading verdict" state but don't show error - it's optional
+          .catch((err) => {
+            console.error("Verdict fetch failed:", err);
           })
           .finally(() => setLoadingVerdict(false));
       }
-
     } catch (err) {
       const errorObj = err as Error;
       setError(errorObj.message || String(err));
@@ -116,7 +128,6 @@ export default function Home() {
     return Math.min(...products.map((p) => p.price));
   }, [products]);
 
-  // Store breakdown for quick stats
   const storeBreakdown = useMemo(() => {
     const breakdown: Record<string, number> = {};
     products.forEach((p) => {
@@ -135,37 +146,34 @@ export default function Home() {
 
   const getStoreTheme = (site: string): StoreTheme => {
     const name = site.toLowerCase();
-    if (name.includes("pb tech") || name.includes("pbtech")) {
-      return {
-        border: "border-cyan-400 focus-within:ring-cyan-400",
-        badgeBg: "bg-cyan-50 border-cyan-200",
-        badgeText: "text-cyan-700",
-        priceText: "text-emerald-600",
-        btnBg:
-          "bg-gradient-to-r from-cyan-500 to-emerald-400 text-white shadow-cyan-200 hover:brightness-105",
-        shadow: "shadow-[0_8px_30px_rgb(34,211,238,0.25)]",
-      };
-    }
-    if (name.includes("jb hi-fi") || name.includes("jbhifi")) {
+    if (name.includes("paknsave") || name.includes("pak'nsave") || name.includes("pak")) {
       return {
         border: "border-yellow-400 focus-within:ring-yellow-400",
         badgeBg: "bg-yellow-100 border-yellow-300",
         badgeText: "text-yellow-800",
-        priceText: "text-orange-600",
-        btnBg:
-          "bg-gradient-to-r from-yellow-400 to-amber-500 text-slate-900 shadow-yellow-100 hover:brightness-105",
-        shadow: "shadow-[0_8px_30px_rgb(234,179,8,0.25)]",
+        priceText: "text-slate-900",
+        btnBg: "bg-gradient-to-r from-yellow-400 to-yellow-500 text-slate-900 shadow-yellow-100 hover:brightness-105",
+        shadow: "shadow-[0_8px_30px_rgb(234,179,8,0.2)]",
       };
     }
-    if (name.includes("harvey norman") || name.includes("harvey")) {
+    if (name.includes("woolworths")) {
       return {
-        border: "border-red-500 focus-within:ring-red-400",
+        border: "border-emerald-600 focus-within:ring-emerald-600",
+        badgeBg: "bg-emerald-50 border-emerald-200",
+        badgeText: "text-emerald-800",
+        priceText: "text-emerald-700",
+        btnBg: "bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-emerald-100 hover:brightness-105",
+        shadow: "shadow-[0_8px_30px_rgb(5,150,105,0.2)]",
+      };
+    }
+    if (name.includes("new world") || name.includes("newworld")) {
+      return {
+        border: "border-red-600 focus-within:ring-red-600",
         badgeBg: "bg-red-50 border-red-200",
         badgeText: "text-red-700",
-        priceText: "text-red-700",
-        btnBg:
-          "bg-gradient-to-r from-red-600 to-rose-500 text-white shadow-red-200 hover:brightness-105",
-        shadow: "shadow-[0_8px_30px_rgb(239,68,68,0.25)]",
+        priceText: "text-red-600",
+        btnBg: "bg-gradient-to-r from-red-600 to-rose-500 text-white shadow-red-100 hover:brightness-105",
+        shadow: "shadow-[0_8px_30px_rgb(220,38,38,0.2)]",
       };
     }
     return {
@@ -173,13 +181,11 @@ export default function Home() {
       badgeBg: "bg-purple-50 border-purple-200",
       badgeText: "text-purple-700",
       priceText: "text-slate-900",
-      btnBg:
-        "bg-gradient-to-r from-purple-500 to-indigo-500 text-white shadow-purple-100 hover:brightness-105",
-      shadow: "shadow-[0_8px_30px_rgb(168,85,247,0.25)]",
+      btnBg: "bg-gradient-to-r from-purple-500 to-indigo-500 text-white shadow-purple-100 hover:brightness-105",
+      shadow: "shadow-[0_8px_30px_rgb(168,85,247,0.2)]",
     };
   };
 
-  // Simple skeleton loader while fetching
   const SkeletonCard = () => (
     <div className="bg-white border-2 border-slate-200 rounded-3xl p-6 animate-pulse">
       <div className="h-6 w-24 bg-slate-200 rounded-full mb-4"></div>
@@ -193,26 +199,26 @@ export default function Home() {
     <main className="relative max-w-6xl mx-auto px-4 py-12 sm:px-6 z-10">
       {/* Brand Header */}
       <header className="text-center mb-10">
-        <div className="inline-flex items-center gap-1.5 bg-white/80 backdrop-blur-sm border border-sky-200 text-sky-800 text-xs font-bold px-3 py-1.5 rounded-full mb-4 shadow-sm">
-          <svg className="w-3.5 h-3.5 text-sky-600" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+        <div className="inline-flex items-center gap-1.5 bg-white/80 backdrop-blur-sm border border-emerald-200 text-emerald-800 text-xs font-bold px-3 py-1.5 rounded-full mb-4 shadow-sm">
+          <svg className="w-3.5 h-3.5 text-emerald-600" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
             <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
             <line x1="7" y1="7" x2="7.01" y2="7" />
           </svg>
-          Choice Prices, Instantly
+          Kiwi Grocery Deals, Sorted
         </div>
 
         <h1 className="text-5xl sm:text-6xl font-black tracking-tight mb-2 drop-shadow-[0_2px_4px_rgba(0,0,0,0.05)]">
-          <span className="bg-gradient-to-r from-blue-600 via-sky-500 to-orange-500 bg-clip-text text-transparent">
+          <span className="bg-gradient-to-r from-emerald-600 via-yellow-500 to-red-500 bg-clip-text text-transparent">
             ChoiceBro
           </span>
           <span className="text-slate-700/30 font-light mx-2">|</span>
-          <span className="bg-gradient-to-r from-amber-500 via-yellow-400 to-emerald-500 bg-clip-text text-transparent">
-            NZ Price Compare
+          <span className="bg-gradient-to-r from-teal-600 via-emerald-500 to-amber-500 bg-clip-text text-transparent">
+            NZ Grocery Compare
           </span>
         </h1>
 
-        <p className="bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-600 bg-clip-text text-transparent font-extrabold text-sm sm:text-base tracking-wide bg-purple-50/50 px-4 py-1.5 rounded-full inline-block border border-purple-100 shadow-sm">
-          Powered by AI. Type like a human, hunt bargains like a pro.
+        <p className="bg-gradient-to-r from-emerald-500 via-teal-500 to-indigo-600 bg-clip-text text-transparent font-extrabold text-sm sm:text-base tracking-wide bg-emerald-50/50 px-4 py-1.5 rounded-full inline-block border border-emerald-100 shadow-sm">
+          Avoid the Woolworths tax, bro. Suss out PAK&apos;nSAVE, Woolworths, and New World prices!
         </p>
       </header>
 
@@ -220,9 +226,9 @@ export default function Home() {
       <div className="max-w-3xl mx-auto mb-14">
         <form
           onSubmit={handleSearch}
-          className="relative flex items-center group bg-white p-2 rounded-2xl border-2 border-orange-400 shadow-[0_10px_25px_-5px_rgba(251,146,60,0.3)] transition-transform focus-within:scale-[1.01] focus-within:ring-2 focus-within:ring-orange-400 focus-within:ring-offset-2"
+          className="relative flex items-center group bg-white p-2 rounded-2xl border-2 border-emerald-500 shadow-[0_10px_25px_-5px_rgba(16,185,129,0.25)] transition-transform focus-within:scale-[1.01] focus-within:ring-2 focus-within:ring-emerald-400 focus-within:ring-offset-2"
         >
-          <div className="pl-3 pr-2 text-orange-400">
+          <div className="pl-3 pr-2 text-emerald-500">
             <svg
               className="w-6 h-6"
               fill="none"
@@ -244,29 +250,29 @@ export default function Home() {
               setQuery(e.target.value);
               setHasSearched(false);
             }}
-            placeholder="Try: 'find a mechanical keyboard under $150' or 'Find out a cheap iPad'..."
+            placeholder="Try: 'cheapest Milo powder' or 'Find out butter deals at PAKnSAVE'..."
             className="w-full py-3 bg-transparent font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none pr-24 sm:pr-36"
             disabled={loading}
-            aria-label="Search products"
+            aria-label="Search groceries"
           />
           <div className="absolute right-2">
             <button
               type="submit"
               disabled={loading || !query.trim()}
-              className="px-4 sm:px-6 py-3 bg-gradient-to-r from-pink-500 via-purple-600 to-indigo-600 hover:brightness-110 text-white font-bold text-sm rounded-xl transition-all shadow-md active:scale-[0.97] disabled:opacity-40 disabled:pointer-events-none"
+              className="px-4 sm:px-6 py-3 bg-gradient-to-r from-emerald-500 via-teal-600 to-indigo-600 hover:brightness-110 text-white font-bold text-sm rounded-xl transition-all shadow-md active:scale-[0.97] disabled:opacity-40 disabled:pointer-events-none"
             >
-              {loading ? "Sussing..." : "Find Deals"}
+              {loading ? "Sussing..." : "Compare Prices"}
             </button>
           </div>
         </form>
 
         <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Try asking:</span>
-          
+          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Quick searches:</span>
+
           {[
-            "Find a monitor under $300 bucks",
-            "Suss out a Nintendo Switch at JB Hi-Fi",
-            "Cheap logitech gaming mouse"
+            "Find Milo powder",
+            "Pams Butter deals",
+            "Fresh milk under $5 bucks"
           ].map((suggestion, i) => (
             <button
               key={i}
@@ -275,17 +281,17 @@ export default function Home() {
                 setQuery(suggestion);
                 handleSearch(undefined, suggestion);
               }}
-              className="text-xs bg-slate-100 hover:bg-amber-100 hover:text-amber-900 border border-slate-200 hover:border-amber-300 text-slate-600 font-medium px-3 py-1.5 rounded-xl transition-all duration-200 active:scale-95"
+              className="text-xs bg-slate-100 hover:bg-emerald-100 hover:text-emerald-950 border border-slate-200 hover:border-emerald-300 text-slate-600 font-medium px-3 py-1.5 rounded-xl transition-all duration-200 active:scale-95"
             >
-              &ldquo;{suggestion}&rdquo;
+              &quot;{suggestion}&quot;
             </button>
           ))}
-        </div>        
+        </div>
 
         {loading && (
-          <div className="flex items-center justify-center gap-3 mt-6 text-slate-600 font-semibold text-sm animate-pulse bg-white/60 py-2.5 px-4 rounded-xl border border-sky-100 w-max mx-auto shadow-sm">
+          <div className="flex items-center justify-center gap-3 mt-6 text-slate-600 font-semibold text-sm animate-pulse bg-white/60 py-2.5 px-4 rounded-xl border border-emerald-100 w-max mx-auto shadow-sm">
             <svg
-              className="animate-spin h-4 w-4 text-sky-600"
+              className="animate-spin h-4 w-4 text-emerald-600"
               fill="none"
               viewBox="0 0 24 24"
             >
@@ -303,7 +309,7 @@ export default function Home() {
                 d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
               />
             </svg>
-            <span>Scanning live web listings... Hang tight bro.</span>
+            <span>Scanning Kiwi supermarkets... Hang tight bro.</span>
           </div>
         )}
 
@@ -314,13 +320,12 @@ export default function Home() {
         )}
 
         {!loading && products.length === 0 && hasSearched && !error && (
-          <div className="mt-8 text-center py-10 bg-white/80 backdrop-blur-sm rounded-2xl border-2 border-dashed border-sky-200 shadow-sm max-w-lg mx-auto">
+          <div className="mt-8 text-center py-10 bg-white/80 backdrop-blur-sm rounded-2xl border-2 border-dashed border-emerald-200 shadow-sm max-w-lg mx-auto">
             <p className="text-slate-600 font-bold">
-              Nothing popped up for that term, bro.
+              Nothing popped up for that grocery item, bro.
             </p>
             <p className="text-slate-400 text-xs mt-1">
-              Try broadening your search parameter (e.g., &apos;Sony&apos;
-              instead of exact serial codes).
+              Try a simpler search term (e.g. &apos;Milo&apos; or &apos;butter&apos;).
             </p>
           </div>
         )}
@@ -328,23 +333,23 @@ export default function Home() {
 
       {/* DYNAMIC AI BRO'S VERDICT BOX MODULE */}
       {(loadingVerdict || verdict) && (
-        <div className="bg-gradient-to-br from-indigo-900 via-slate-900 to-purple-950 text-white rounded-3xl p-6 border border-indigo-500/30 shadow-xl transition-all duration-300">
-          <div className="flex items-center justify-between border-b border-indigo-500/20 pb-3 mb-4">
+        <div className="bg-gradient-to-br from-emerald-950 via-slate-900 to-teal-950 text-white rounded-3xl p-6 border border-emerald-500/30 shadow-xl transition-all duration-300 mb-8 max-w-4xl mx-auto">
+          <div className="flex items-center justify-between border-b border-emerald-500/20 pb-3 mb-4">
             <div className="flex items-center gap-2.5">
-              <svg className="w-6 h-6 text-pink-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                <path d="M9.813 15.904L9 21L8.188 15.904L3 15L8.188 14.096L9 9L9.813 14.096L15 15L9.813 15.904Z" />
-                <path d="M19.071 4.929L18.5 7L17.929 4.929L16 4.5L17.929 4.071L18.5 2L19.071 4.071L21 4.5L19.071 4.929Z" />
+              <svg className="w-6 h-6 text-emerald-400" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                <path d="M12 2v3M12 5c-3.3 0-6 2.7-6 6 0 4 3.5 7 6 9 2.5-2 6-5 6-9 0-3.3-2.7-6-6-6z" />
+                <path d="M9 10c0-1.7 1.3-3 3-3" />
               </svg>
               <div>
-                <h3 className="font-black tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-amber-300 text-sm sm:text-base">
-                  {"BRO'S AI VERDICT"}
+                <h3 className="font-black tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-yellow-300 text-sm sm:text-base">
+                  BRO&apos;S GROCERY VERDICT
                 </h3>
-                <p className="text-[10px] text-indigo-300 font-bold uppercase tracking-widest">Real-time Deal Analysis</p>
+                <p className="text-[10px] text-emerald-300 font-bold uppercase tracking-widest">NZ Supermarket Review</p>
               </div>
             </div>
-            
+
             {verdict && (
-              <span className="bg-indigo-500/20 border border-indigo-400/30 text-amber-300 font-black text-xs px-3 py-1 rounded-full uppercase tracking-wider">
+              <span className="bg-emerald-500/20 border border-emerald-400/30 text-yellow-300 font-black text-xs px-3 py-1 rounded-full uppercase tracking-wider">
                 Score: {verdict.dealRating}
               </span>
             )}
@@ -352,21 +357,21 @@ export default function Home() {
 
           {loadingVerdict ? (
             <div className="flex items-center gap-3 text-slate-300 py-2">
-              <div className="w-2 h-2 bg-pink-500 rounded-full animate-bounce" />
-              <div className="w-2 h-2 bg-purple-500 rounded-full animate-bounce [animation-delay:0.2s]" />
-              <div className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce [animation-delay:0.4s]" />
-              <p className="text-xs font-semibold text-indigo-200/80 italic">Bro is running the numbers across NZ retail sites...</p>
+              <div className="w-2 h-2 bg-emerald-500 rounded-full animate-bounce" />
+              <div className="w-2 h-2 bg-yellow-500 rounded-full animate-bounce [animation-delay:0.2s]" />
+              <div className="w-2 h-2 bg-red-500 rounded-full animate-bounce [animation-delay:0.4s]" />
+              <p className="text-xs font-semibold text-emerald-200/80 italic">Bro is calculating standard vs club card savings...</p>
             </div>
           ) : (
             verdict && (
               <div className="space-y-3.5">
                 <p className="text-sm text-slate-200 leading-relaxed font-medium">
-                  &ldquo;{verdict.summary}&rdquo;
+                  &quot;{verdict.summary}&quot;
                 </p>
                 <div className="bg-white/5 border border-white/10 rounded-xl p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div>
-                    <span className="block text-[10px] text-indigo-300 font-bold uppercase tracking-wider">Prime Value Target</span>
-                    <span className="flex items-center gap-1 text-xs font-black text-white bg-indigo-600/50 px-2.5 py-1 rounded-md border border-indigo-400/30 mt-0.5 w-fit uppercase">
+                    <span className="block text-[10px] text-emerald-300 font-bold uppercase tracking-wider">Lowest Price Target</span>
+                    <span className="flex items-center gap-1 text-xs font-black text-white bg-emerald-700/50 px-2.5 py-1 rounded-md border border-emerald-400/30 mt-0.5 w-fit uppercase">
                       <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
                         <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
                         <polyline points="9 22 9 12 15 12 15 22" />
@@ -375,9 +380,9 @@ export default function Home() {
                     </span>
                   </div>
                   <div>
-                    <span className="block text-[10px] text-amber-400 font-bold uppercase tracking-wider sm:text-right">Tactical Advice</span>
-                    <p className="flex sm:justify-end items-center gap-1.5 text-xs font-black text-amber-300 italic mt-0.5">
-                      <svg className="w-3.5 h-3.5 text-amber-300 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                    <span className="block text-[10px] text-yellow-400 font-bold uppercase tracking-wider sm:text-right">Bargain Advice</span>
+                    <p className="flex sm:justify-end items-center gap-1.5 text-xs font-black text-yellow-300 italic mt-0.5">
+                      <svg className="w-3.5 h-3.5 text-yellow-300 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
                         <path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 1 1 7.072 0l-.548.547A3.374 3.374 0 0 0 14 18.469V19a2 2 0 1 1-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
                       </svg>
                       {verdict.broAdvice}
@@ -394,13 +399,13 @@ export default function Home() {
       {products.length > 0 && (
         <div className="space-y-6">
           {/* Controls Bar Header with store breakdown */}
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white/90 backdrop-blur-sm p-4 rounded-2xl border border-sky-200/60 shadow-sm">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white/90 backdrop-blur-sm p-4 rounded-2xl border border-emerald-200/60 shadow-sm">
             <div>
-              <h2 className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-sky-500 to-indigo-600">
-                The Lineup
+              <h2 className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 via-teal-500 to-indigo-600">
+                Supermarket Lineup
               </h2>
               <p className="text-xs font-bold text-slate-400">
-                Pulled {products.length} dynamic store variations.
+                Pulled {products.length} store variations.
                 {Object.entries(storeBreakdown).map(([store, count]) => (
                   <span key={store} className="ml-2 inline-block">
                     {store}: {count}
@@ -428,14 +433,14 @@ export default function Home() {
                 type="button"
                 onClick={() => setSortBy("store")}
                 aria-pressed={sortBy === "store"}
-                className={`px-3 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-purple-400 focus:ring-offset-1 ${sortBy === "store" ? "bg-gradient-to-r from-purple-500 to-indigo-500 text-white shadow-sm" : "text-slate-600 hover:text-slate-900"}`}
+                className={`px-3 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:ring-offset-1 ${sortBy === "store" ? "bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-sm" : "text-slate-600 hover:text-slate-900"}`}
               >
                 Group By Store
               </button>
             </div>
           </div>
 
-          {/* Skeleton loader while loading (if you keep products empty until done, but you have separate loading state) */}
+          {/* Skeleton loader while loading */}
           {loading && (
             <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
               {[1, 2, 3].map((i) => (
@@ -447,8 +452,7 @@ export default function Home() {
           {/* Dynamic Grid Matrix Output */}
           <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
             {sortedProducts.map((product, idx) => {
-              const isCheapest =
-                lowestPrice !== null && product.price === lowestPrice;
+              const isCheapest = lowestPrice !== null && product.price === lowestPrice;
               const storeTheme = getStoreTheme(product.site);
 
               return (
@@ -459,8 +463,8 @@ export default function Home() {
                   }`}
                 >
                   {isCheapest && (
-                    <span className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-gradient-to-r from-purple-600 via-pink-500 via-orange-400 to-emerald-500 text-white font-black text-[11px] tracking-widest uppercase px-4 py-1 rounded-full shadow-lg border border-white animate-bounce-subtle">
-                      Choice Deal
+                    <span className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-gradient-to-r from-emerald-600 via-yellow-400 to-red-500 text-white font-black text-[11px] tracking-widest uppercase px-4 py-1 rounded-full shadow-lg border border-white animate-bounce-subtle">
+                      Cheapest Deal
                     </span>
                   )}
 
@@ -473,7 +477,7 @@ export default function Home() {
                       </span>
                     </div>
 
-                    <h3 className="font-bold text-slate-800 line-clamp-3 text-sm sm:text-base group-hover:text-blue-600 transition-colors mb-4 min-h-[3rem]">
+                    <h3 className="font-bold text-slate-800 line-clamp-3 text-sm sm:text-base group-hover:text-emerald-600 transition-colors mb-4 min-h-[3rem]">
                       {product.title}
                     </h3>
                   </div>
@@ -481,11 +485,9 @@ export default function Home() {
                   <div className="pt-4 border-t border-slate-100 flex flex-col gap-3">
                     <div className="text-center">
                       <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">
-                        Live Market Price
+                        Supermarket Price
                       </span>
-                      <div
-                        className={`text-3xl font-black tracking-tight ${storeTheme.priceText}`}
-                      >
+                      <div className={`text-3xl font-black tracking-tight ${storeTheme.priceText}`}>
                         $
                         {product.price.toLocaleString(undefined, {
                           minimumFractionDigits: 2,
@@ -526,8 +528,8 @@ export default function Home() {
             })}
           </div>
 
-          <div className="bg-gradient-to-r from-amber-400/10 via-yellow-400/10 to-emerald-400/10 border-2 border-amber-400 rounded-2xl p-5 mt-10 shadow-sm flex flex-col sm:flex-row items-center gap-4">
-            <div className="bg-amber-400 text-slate-900 p-3 rounded-xl shadow-inner">
+          <div className="bg-gradient-to-r from-emerald-400/10 via-yellow-400/10 to-emerald-400/10 border-2 border-emerald-400 rounded-2xl p-5 mt-10 shadow-sm flex flex-col sm:flex-row items-center gap-4">
+            <div className="bg-emerald-400 text-slate-900 p-3 rounded-xl shadow-inner">
               <svg className="w-6 h-6 text-slate-900" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
                 <circle cx="12" cy="12" r="10" />
                 <line x1="12" y1="16" x2="12" y2="12" />
@@ -535,22 +537,17 @@ export default function Home() {
               </svg>
             </div>
             <div className="text-center sm:text-left">
-              <h4 className="text-sm font-black text-amber-950 uppercase tracking-wide">
+              <h4 className="text-sm font-black text-emerald-950 uppercase tracking-wide">
                 Just a heads up, bro!
               </h4>
-              <p className="text-xs text-amber-900 font-medium mt-0.5 leading-relaxed">
-                ChoiceBro is just a fun weekend project built for the love of it
-                (I don&apos;t make a single cent off this!). Because the retail
-                sites update their prices constantly, things might vary slightly
-                by the time you click through. Always double-check the final
-                total on the store&apos;s actual site before checking out!
+              <p className="text-xs text-emerald-900 font-medium mt-0.5 leading-relaxed">
+                Supermarket pricing varies by location and active club memberships. Always double check prices on the active supermarket page before heading in-store.
               </p>
             </div>
           </div>
 
           <footer className="text-center text-[11px] font-semibold text-slate-400/80 pt-4">
-            * Built purely for fun and finding bargains. No corporate ties, no
-            hidden agendas, just choice deals.
+            * Built purely for fun and saving dollars. No corporate ties, no hidden agendas.
           </footer>
         </div>
       )}

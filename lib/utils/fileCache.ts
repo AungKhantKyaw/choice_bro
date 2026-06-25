@@ -36,7 +36,7 @@ export const fileCache = {
       }
 
       return item.value;
-    } catch (error) {
+    } catch {
       // File doesn't exist or is corrupted
       return null;
     }
@@ -75,7 +75,7 @@ export const fileCache = {
         const filePath = path.join(CACHE_DIR, file);
         try {
           const data = await fs.readFile(filePath, "utf-8");
-          const item: CacheItem<any> = JSON.parse(data);
+          const item: CacheItem<unknown> = JSON.parse(data);
           if (now > item.expiry) {
             await fs.unlink(filePath);
           }
@@ -84,7 +84,7 @@ export const fileCache = {
           await fs.unlink(filePath).catch(() => {});
         }
       }
-    } catch (error) {
+    } catch {
       // Cache directory might not exist yet
     }
   },

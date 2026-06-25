@@ -15,36 +15,46 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - **app/**: Next.js 13+ App Router components.
   - `app/page.tsx`: Main UI with search form and results display.
+  - `app/grocery/page.tsx`: Grocery-specific search interface.
   - `app/api/search/route.ts`: API endpoint that orchestrates scrapers and returns product data.
   - `app/api/chat/route.ts`: AI endpoint for parsing natural language queries (using Google GenAI).
-  - `app/api/verdict/route.ts`: AI endpoint for generating deal verdicts (if exists; we saw verdict used in page.tsx).
+  - `app/api/verdict/route.ts`: AI endpoint for generating deal verdicts.
   - `app/layout.tsx`: Root layout with metadata and background styles.
   - `app/globals.css`: Tailwind CSS base styles and custom animations.
 - **lib/**: Utility modules and shared logic.
   - `lib/orchestrator.ts`: Runs all retailer scrapers concurrently and aggregates results.
-  - `lib/scrapers/`: Individual scraper implementations for each retailer.
-    - `pbtech.ts`: PB Tech scraper (likely using fetch and parsing).
-    - `harveyNorman.ts`: Harvey Norman scraper.
-    - `jbhifi.ts`: JB Hi-Fi scraper (uses Puppeteer for dynamic content).
-  - `lib/types.ts`: Shared TypeScript interfaces (e.g., Product, StoreTheme).
-- **public/**: Static assets (e.g., screenshot.png).
-- **Configuration**: 
-  - `next.config.ts`: Next.js configuration.
-  - `tailwind.config.js`: Tailwind CSS configuration.
-  - `tsconfig.json`: TypeScript configuration.
-  - `.env.local`: Environment variables (e.g., API keys for Google GenAI).
+  - `lib/groceryOrchestrator.ts`: Specialized orchestrator for grocery retailers.
+  - `lib/browser.ts`: Puppeteer browser launcher pool.
+  - `lib/cache.ts`: Cache utilities.
+  - `lib/types.ts`: Shared TypeScript interfaces (Product, ScraperResult).
+  - `lib/scrapers/`: Individual scraper implementations.
+    - `pbtech.ts`, `harveyNorman.ts`, `jbhifi.ts`: Tech retailers (JB Hi-Fi uses Puppeteer).
+    - `newworld.ts`, `paknsave.ts`, `woolworths.ts`: Grocery retailers.
+  - `lib/utils/`: Helper utilities.
+    - `fileCache.ts`: Persistent file cache engine with 4-hour TTL.
+    - `scraper-helpers.ts`: Stealth, request interception, and mock browser profiles.
+    - `retry.ts`, `timeout.ts`: Resilience utilities.
+- **public/**: Static assets.
+- **.cache/**: Persistent JSON query cache directory (auto-created).
+- **Configuration**: `next.config.ts`, `tailwind.config.js`, `tsconfig.json`, `.env.local`.
 
 ## Key Features
 
-- Real-time price comparison across PB Tech, Harvey Norman, and JB Hi-Fi.
-- AI-powered query parsing to extract product name and optional max price.
+- Real-time price comparison across tech and grocery retailers.
+- AI-powered query parsing using Gemini to extract product name, max price, and store preferences.
+- Intelligent scraper routing - only runs scrapers for specified stores (3x faster).
+- Segmented persistent caching with file-based JSON cache (4-hour TTL).
+- Advanced scraper stealth using User-Agent rotation, webdriver evasion, and request interception.
 - Store-specific theming in UI components.
-- Responsive design with Tailwind CSS.
-- Verdict feature that provides AI-generated deal advice.
+
+## Important: Next.js 16 Breaking Changes
+
+This is a Next.js 16 preview build with breaking changes. Check `node_modules/next/dist/docs/` before modifying code. See `AGENTS.md` for details.
 
 ## Notes for Development
 
 - Puppeteer requires a Chromium executable; ensure it's installed when running scrapers locally.
-- The AI features depend on the Google Generative AI API; an API key must be set in `.env.local`.
+- The AI features depend on the Google GenAI API; set `GEMINI_API_KEY` in `.env.local`.
 - When modifying scrapers, consider that retailer websites may change; selectors may need updating.
-- The project uses modern Next.js features (server actions, route handlers) and TypeScript strictly.
+- The project uses TypeScript strictly with modern Next.js features (server actions, route handlers).
+- `.claude/settings.local.json` allows `npm run *` commands without prompts.

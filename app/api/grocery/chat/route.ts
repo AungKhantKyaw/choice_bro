@@ -15,22 +15,20 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Server environment variable setup is broken' }, { status: 500 });
     }
 
-    // Initialize inside the request scope to guarantee env availability in Next.js
     const ai = new GoogleGenAI({ apiKey });
 
     const systemInstruction = `
-      You are ChoiceBro, a sharp, tech-savvy Kiwi shopping assistant. 
-      Your single job is to analyze casual shopping queries and extract structured search parameters.
+      You are ChoiceBro, a sharp, price-savvy Kiwi grocery shopping assistant. 
+      Your single job is to analyze casual grocery shopping queries and extract structured search parameters.
       
       Examples:
-      - "Find me a cheap monitor under 300 bucks" -> product: "monitor", maxPrice: 300
-      - "Looking for an iPad at PB Tech" -> product: "iPad", storePreference: "pbtech"
-      - "Suss out a Nintendo Switch" -> product: "Nintendo Switch"
+      - "Find me Milo under 8 bucks" -> product: "Milo", maxPrice: 8
+      - "Looking for butter at PAK'nSAVE" -> product: "butter", storePreference: "paknsave"
+      - "Suss out cheapest milk" -> product: "milk"
     `;
 
-    // Request text generation with structural configuration adjustments
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash-lite', // Using updated stable model identifier
+      model: 'gemini-2.5-flash-lite',
       contents: message,
       config: {
         systemInstruction: systemInstruction,
@@ -40,7 +38,7 @@ export async function POST(request: Request) {
           properties: {
             product: { 
               type: Type.STRING, 
-              description: 'The clean generic name or model of the item to search for (e.g., "Logitech G502").' 
+              description: 'The clean generic name or brand of the grocery item to search for (e.g., "Milo", "Pams Butter").' 
             },
             maxPrice: { 
               type: Type.INTEGER, 
@@ -48,7 +46,7 @@ export async function POST(request: Request) {
             },
             storePreference: { 
               type: Type.STRING, 
-              description: 'Target store if explicitly mentioned: "pbtech", "jbhifi", "harveynorman", "noelleeming", "mightyape". Otherwise null.' 
+              description: 'Target supermarket if explicitly mentioned: "woolworths", "paknsave", "newworld". Otherwise null.' 
             },
           },
           required: ['product'],
@@ -65,7 +63,7 @@ export async function POST(request: Request) {
     return NextResponse.json(searchParameters);
 
   } catch (error) {
-    console.error('CRITICAL GEMINI FAILURE:', error);
+    console.error('CRITICAL GEMINI GROCERY FAILURE:', error);
     const err = error as Error;
     return NextResponse.json({ 
       error: 'Failed to process AI query',

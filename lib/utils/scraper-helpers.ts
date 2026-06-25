@@ -58,7 +58,7 @@ export async function setupScraperPage(page: Page): Promise<void> {
     });
 
     // Mock chrome runtime features
-    (window as any).chrome = {
+    (window as unknown as { chrome: unknown }).chrome = {
       runtime: {},
     };
 
