@@ -103,8 +103,9 @@ export default function Home() {
           .finally(() => setLoadingVerdict(false));
       }
 
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      const errorObj = err as Error;
+      setError(errorObj.message || String(err));
     } finally {
       setLoading(false);
     }
@@ -276,7 +277,7 @@ export default function Home() {
               }}
               className="text-xs bg-slate-100 hover:bg-amber-100 hover:text-amber-900 border border-slate-200 hover:border-amber-300 text-slate-600 font-medium px-3 py-1.5 rounded-xl transition-all duration-200 active:scale-95"
             >
-              "{suggestion}"
+              &ldquo;{suggestion}&rdquo;
             </button>
           ))}
         </div>        
@@ -336,7 +337,7 @@ export default function Home() {
               </svg>
               <div>
                 <h3 className="font-black tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-amber-300 text-sm sm:text-base">
-                  BRO'S AI VERDICT
+                  {"BRO'S AI VERDICT"}
                 </h3>
                 <p className="text-[10px] text-indigo-300 font-bold uppercase tracking-widest">Real-time Deal Analysis</p>
               </div>
@@ -360,7 +361,7 @@ export default function Home() {
             verdict && (
               <div className="space-y-3.5">
                 <p className="text-sm text-slate-200 leading-relaxed font-medium">
-                  "{verdict.summary}"
+                  &ldquo;{verdict.summary}&rdquo;
                 </p>
                 <div className="bg-white/5 border border-white/10 rounded-xl p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div>
