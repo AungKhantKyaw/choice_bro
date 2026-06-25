@@ -1,48 +1,33 @@
-# ChoiceBro | NZ Price Compare
+# ChoiceBro | NZ Price Comparison Engine
 
-> Suss out the absolute cheapest tech and appliances across PB Tech, JB Hi-Fi, Harvey Norman, and more – instantly.
+> Suss out the absolute cheapest deals across New Zealand's top tech, appliance, and grocery retailers — instantly.
 
-![NZ Price Compare Screenshot](screenshot.png)
+ChoiceBro is an intelligent, real-time price comparison engine designed specifically for Kiwi bargain hunters. Enter casual queries, and ChoiceBro leverages Gemini AI to extract your search intent (budget, brand, specific items), queries live listings concurrently via high-performance headless scrapers, and presents the data in a beautiful, brand-matched Kiwi dashboard.
 
-## Overview
+---
 
-ChoiceBro is an intelligent, real-time price comparison tool designed specifically for New Zealand shoppers. Enter any shopping query, and ChoiceBro leverages AI to extract your budget, product name, and store preferences, scrapes live listings concurrently from local retailers, and presents them in a sleek, Kiwi-flavoured dashboard. 
+## Key Highlights
 
-## Key Features
+### Tech Comparative Engine
+* **Coverage:** Live scrapers for **PB Tech**, **JB Hi-Fi**, and **Harvey Norman**.
+* **Smart Routing:** Intelligently extracts store keywords (e.g., *"sony headphones at PB Tech"*) to only fire target scrapers, cutting query time by **3x**.
+* **Brand Styling:** Results are dynamically themed matching each retailer's signature colors (e.g. JB yellow/amber, PB Tech cyan/emerald).
 
-- **AI-Parsed Queries** – Type like a human, shop like a pro. Gemini dynamically parses casual searches (e.g. *"find a mechanical keyboard under $150 at JB Hi-Fi"*) into structured queries.
-- **Intelligent Scraper Routing** – If a user specifies a target store (e.g. *"at PB Tech"*), ChoiceBro dynamically routes queries and **only** executes browser scrapers for that specific retailer, speeding up retrieval times by **3x**.
-- **Segmented Persistent Caching** – Repeat searches load instantly (<50ms) using a local, file-based JSON cache segmented by query and store preference (with a 4-hour TTL).
-- **Advanced Scraper Stealth & Evasion** – Scrapers bypass bot detection and Cloudflare checkblocks using User-Agent rotation, webdriver evasion (`navigator.webdriver` removal), mock desktop browser footprints (mocked plugins and languages), and custom HTTP headers.
-- **Ultra-Fast Interception** – Puppeteer blocks heavy telemetry, ads, analytic pixels (GTM, Facebook/TikTok pixels, Sentry), images, styles, and font files to fetch pricing data in seconds.
-- **Responsive Store-Specific Theming** – Retail listings are styled dynamically matching each brand's signature identity (e.g., cyan/emerald for PB Tech, yellow/amber for JB Hi-Fi).
-- **UX Polish** – Supports direct click-to-search query suggestions and resilient empty-state rendering that hides no-results alerts until searches actively finish.
+### Supermarket Comparative Engine (New!)
+* **Coverage:** Live scrapers for **PAK'nSAVE**, **New World**, and **Woolworths**.
+* **Brand Filter:** Advanced token matching automatically filters out unrelated items (e.g. searching *"Pams Butter"* isolates the Pams brand, filtering out Mainland or Anchor).
+* **Resilient Selectors:** Utilizes class-agnostic, data-testid traversal methods to survive e-commerce platforms' dynamic CSS hash updates.
 
-## Installation
+### Gemini AI Verdict Engine
+* **Bro's AI Verdict:** Reviews compiled listings in real-time, assigning a deal rating (e.g. *Good Deal, Average, Steal*) and summarizing recommendations.
+* **Casual Parsing:** Translates informal conversational queries (e.g., *"Find a cheap mechanical keyboard under $150 bucks"*) into precise search parameters.
 
-### Prerequisites
-- Node.js 18+ and npm/yarn/pnpm
-- A hosting environment that supports Puppeteer (not Vercel Serverless out-of-the-box without custom Chromium layers)
+### Under-The-Hood Optimizations
+* **Stealth & Evasions:** Evades anti-bot telemetry by removing `navigator.webdriver`, spoofing Chrome runtime specs, and injecting mock browser lang/plugin configurations.
+* **Fast Interception:** Puppeteer blocks images, stylesheets, fonts, tracking pixels (Facebook/TikTok ads), and analytic networks (Google Tag Manager, Sentry) for rapid data extraction.
+* **Segmented Caching:** Persistent JSON-based local cache segmented by search queries and store preferences with a 4-hour time-to-live (TTL).
 
-### Steps
-
-```bash
-# 1. Clone the repository
-git clone https://github.com/AungKhantKyaw/choice_bro.git
-
-cd choice_bro
-
-# 2. Install dependencies
-npm install
-
-# 3. Create .env.local and add your API Key
-echo "GEMINI_API_KEY=your_gemini_api_key_here" > .env.local
-
-# 4. Run the development server
-npm run dev
-
-# 5. Open http://localhost:3000
-```
+---
 
 ## Project Structure
 
@@ -50,42 +35,89 @@ npm run dev
 choice_bro/
 ├── app/
 │   ├── api/
-│   │   ├── chat/
-│   │   │   └── route.ts          # AI query extractor
-│   │   ├── search/
-│   │   │   └── route.ts          # Orchestrated scraper router
-│   │   └── verdict/
-│   │       └── route.ts          # Bro's AI Deal Review generator
-│   ├── layout.tsx                # Root layout with metadata and styling
-│   ├── page.tsx                  # Main client-side Search Dashboard
-│   └── globals.css               # Tailwind + custom animations
+│   │   ├── chat/                  # Tech Gemini AI parser
+│   │   │   └── route.ts
+│   │   ├── search/                # Tech scrapers orchestrator
+│   │   │   └── route.ts
+│   │   ├── verdict/               # Tech Gemini deal review
+│   │   │   └── route.ts
+│   │   └── grocery/               # Grocery Shop Sub-System
+│   │       ├── chat/              # Grocery Gemini AI parser
+│   │       │   └── route.ts
+│   │       ├── search/            # Grocery scrapers orchestrator
+│   │       │   └── route.ts
+│   │       └── verdict/           # Grocery Gemini deal review
+│   │           └── route.ts
+│   ├── grocery/                   # Grocery Dashboard Frontend UI
+│   │   └── page.tsx
+│   ├── globals.css                # Global stylesheet & animations
+│   ├── layout.tsx                 # Site layout with SVG navigation header
+│   ├── page.tsx                   # Tech Deals Frontend UI
+│   └── icon.svg                   # Vector site icon
 ├── lib/
-│   ├── scrapers/
-│   │   ├── pbtech.ts             # PB Tech scraper
-│   │   ├── harveyNorman.ts       # Harvey Norman scraper
-│   │   └── jbhifi.ts             # JB Hi-Fi scraper (Puppeteer)
+│   ├── scrapers/                  # Puppeteer Web Scrapers
+│   │   ├── pbtech.ts
+│   │   ├── jbhifi.ts
+│   │   ├── harveyNorman.ts
+│   │   ├── woolworths.ts
+│   │   ├── paknsave.ts
+│   │   └── newworld.ts
 │   ├── utils/
-│   │   ├── fileCache.ts          # Persistent file cache engine [NEW]
-│   │   ├── retry.ts              # Action retries handler
-│   │   ├── scraper-helpers.ts    # Stealth, request interception & mock profiles [UPDATED]
-│   │   └── timeout.ts            # Timeout wrapper
-│   ├── browser.ts                # Puppeteer browser launcher pool
-│   ├── orchestrator.ts           # Dynamic scraper coordinator [UPDATED]
-│   └── types.ts                  # TypeScript interfaces
-├── .cache/                       # Persistent JSON query cache directory (auto-created)
-├── public/                       # Static public assets
+│   │   ├── fileCache.ts           # Segmented JSON cache engine
+│   │   ├── retry.ts               # Resilient scrape action retry utility
+│   │   ├── scraper-helpers.ts     # Evasion configurations & resource blockers
+│   │   └── timeout.ts             # Orchestrator timeout limits wrapper
+│   ├── browser.ts                 # Shared Puppeteer instance initializer
+│   ├── orchestrator.ts            # Tech search coordinator
+│   ├── groceryOrchestrator.ts     # Grocery search coordinator
+│   └── types.ts                   # Unified typescript declarations
+├── .cache/                        # Local file-cache directory (auto-created)
+├── public/                        # Static site assets
 ├── package.json
-├── tsconfig.json
-├── tailwind.config.js
-└── README.md
+└── tsconfig.json
 ```
 
-## Just a heads up, bro! (Disclaimer)
+---
 
-ChoiceBro is an entirely non-commercial, free project built for the love of coding and bargain hunting. I don't earn a single cent off this application!
+## Getting Started
 
-Because retail platforms update inventories and clear items dynamically, prices found here may vary slightly from real-time checkout displays on merchant domains. Users are always encouraged to double-check final values natively at checkout.
+### Prerequisites
+* **Node.js** 18+ and `npm` installed.
+* An environment capable of running Puppeteer (headless Chromium).
+
+### Installation Steps
+
+1. **Clone the Repository**
+   ```bash
+   git clone https://github.com/AungKhantKyaw/choice_bro.git
+   cd choice_bro
+   ```
+
+2. **Install Dependencies**
+   ```bash
+   npm install
+   ```
+
+3. **Configure Environment Variables**
+   Create a `.env.local` file in the root directory and add your Gemini API Key:
+   ```env
+   GEMINI_API_KEY=your_gemini_api_key_here
+   ```
+
+4. **Launch the Development Server**
+   ```bash
+   npm run dev
+   ```
+   Open [http://localhost:3000](http://localhost:3000) in your browser. Use the header tabs to toggle between **Tech Deals** and the **Grocery Shop**.
+
+---
+
+## Heads up, bro! (Disclaimer)
+
+ChoiceBro is a free, non-commercial developer playground built for the love of coding, open-source web scraping, and bargain hunting. 
+
+Because retailers constantly modify prices, inventories, and page layouts, prices displayed here might occasionally vary from a merchant's real-time checkout values. Always double check before completing checkout!
 
 ## License
 
-This project is open-source and free to play around with. Fork it, tweak it, add your favorite local store, and happy hunting!
+This project is open-source and free to adapt. Fork it, add your favorite Kiwi storefronts, and happy deal hunting!
