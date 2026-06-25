@@ -6,6 +6,10 @@ ChoiceBro is an intelligent, real-time price comparison engine designed specific
 
 ---
 
+![NZ Price Compare Screenshot](screenshot.png)
+
+---
+
 ## Key Highlights
 
 ### Tech Comparative Engine
