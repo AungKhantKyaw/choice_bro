@@ -1,14 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-
-interface Product {
-  site: string;
-  title: string;
-  price: number;
-  url: string;
-  currency: string;
-}
+import type { Product, RetailerFailure } from "@/lib/types";
 
 type SortOrder = "cheapest" | "store";
 
@@ -30,6 +23,8 @@ export default function Home() {
   const [verdict, setVerdict] = useState<{ summary: string; bestStore: string; dealRating: string; broAdvice: string } | null>(null);
   const [loadingVerdict, setLoadingVerdict] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
+  const [failures, setFailures] = useState<RetailerFailure[]>([]);
+  const [ignoredStore, setIgnoredStore] = useState("");
 
   const handleSearch = async (e?: React.FormEvent, customQuery?: string) => {
     if (e) e.preventDefault();
@@ -41,6 +36,8 @@ export default function Home() {
     setProducts([]);
     setVerdict(null);
     setHasSearched(false);
+    setFailures([]);
+    setIgnoredStore("");
     
     try {      
       const aiRes = await fetch('/api/chat', {
@@ -56,27 +53,16 @@ export default function Home() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           query: searchConfig.product,
-          storePreference: searchConfig.storePreference
+          storePreference: searchConfig.storePreference,
+          maxPrice: searchConfig.maxPrice,
         }) 
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Search failed');
       
-      let finalProducts = data.products;
-      if (searchConfig.maxPrice) {
-        finalProducts = finalProducts.filter((p: Product) => p.price <= searchConfig.maxPrice);
-      }
-      if (searchConfig.storePreference) {
-        const pref = searchConfig.storePreference.toLowerCase();
-        finalProducts = finalProducts.filter((p: Product) => {
-          const site = p.site.toLowerCase();
-          if (pref === "pbtech" && (site.includes("pb tech") || site.includes("pbtech"))) return true;
-          if (pref === "jbhifi" && (site.includes("jb hi-fi") || site.includes("jbhifi"))) return true;
-          if (pref === "harveynorman" && (site.includes("harvey norman") || site.includes("harvey"))) return true;
-          return false;
-        });
-      }
-      
+      const finalProducts: Product[] = data.products;
+      setFailures(data.failures ?? []);
+      setIgnoredStore(data.ignoredStorePreference ?? "");
       setProducts(finalProducts);
       setHasSearched(true);
      
@@ -313,7 +299,19 @@ export default function Home() {
           </div>
         )}
 
-        {!loading && products.length === 0 && hasSearched && !error && (
+        {hasSearched && failures.length > 0 && (
+          <div className="mt-6 bg-amber-50 border-2 border-amber-300 text-amber-900 px-4 py-3 rounded-xl font-semibold text-sm text-center shadow-sm">
+            Couldn&apos;t reach {failures.map((f) => f.retailer).join(", ")} this time, so results may be missing. Give it another go in a sec.
+          </div>
+        )}
+
+        {hasSearched && ignoredStore && (
+          <div className="mt-4 bg-slate-50 border border-slate-300 text-slate-700 px-4 py-2 rounded-xl text-xs font-semibold text-center">
+            I don&apos;t search &quot;{ignoredStore}&quot;, so I checked all the stores instead.
+          </div>
+        )}
+
+        {!loading && products.length === 0 && hasSearched && !error && failures.length === 0 && (
           <div className="mt-8 text-center py-10 bg-white/80 backdrop-blur-sm rounded-2xl border-2 border-dashed border-sky-200 shadow-sm max-w-lg mx-auto">
             <p className="text-slate-600 font-bold">
               Nothing popped up for that term, bro.
