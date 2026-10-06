@@ -1,16 +1,9 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import type { Product, RetailerFailure } from "@/lib/types";
 
-interface Product {
-  site: string;
-  title: string;
-  price: number;
-  url: string;
-  currency: string;
-}
-
-type SortOrder = "cheapest" | "store";
+type SortOrder = "cheapest" | "unit" | "store";
 
 interface StoreTheme {
   border: string;
@@ -30,6 +23,8 @@ export default function GroceryPage() {
   const [verdict, setVerdict] = useState<{ summary: string; bestStore: string; dealRating: string; broAdvice: string } | null>(null);
   const [loadingVerdict, setLoadingVerdict] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
+  const [failures, setFailures] = useState<RetailerFailure[]>([]);
+  const [ignoredStore, setIgnoredStore] = useState("");
 
   const handleSearch = async (e?: React.FormEvent, customQuery?: string) => {
     if (e) e.preventDefault();
@@ -41,6 +36,8 @@ export default function GroceryPage() {
     setProducts([]);
     setVerdict(null);
     setHasSearched(false);
+    setFailures([]);
+    setIgnoredStore("");
 
     try {
       // 1. Process search query through AI Grocery Chat Parser
@@ -59,38 +56,15 @@ export default function GroceryPage() {
         body: JSON.stringify({
           query: searchConfig.product,
           storePreference: searchConfig.storePreference,
+          maxPrice: searchConfig.maxPrice,
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Search failed");
 
-      let finalProducts = data.products;
-
-      // Filter by AI maxPrice if provided
-      if (searchConfig.maxPrice) {
-        finalProducts = finalProducts.filter((p: Product) => p.price <= searchConfig.maxPrice);
-      }
-
-      // Filter by store preference on client side as fallback
-      if (searchConfig.storePreference) {
-        const pref = searchConfig.storePreference.toLowerCase();
-        finalProducts = finalProducts.filter((p: Product) => {
-          const site = p.site.toLowerCase();
-          if (pref === "woolworths" && site.includes("woolworths")) return true;
-          if (
-            (pref === "paknsave" || pref === "pak n save" || pref === "pak'nsave") &&
-            site.includes("pak")
-          )
-            return true;
-          if (
-            (pref === "newworld" || pref === "new world") &&
-            site.includes("new world")
-          )
-            return true;
-          return false;
-        });
-      }
-
+      const finalProducts: Product[] = data.products;
+      setFailures(data.failures ?? []);
+      setIgnoredStore(data.ignoredStorePreference ?? "");
       setProducts(finalProducts);
       setHasSearched(true);
 
@@ -140,6 +114,15 @@ export default function GroceryPage() {
     const list = [...products];
     if (sortBy === "cheapest") {
       return list.sort((a, b) => a.price - b.price);
+    }
+    if (sortBy === "unit") {
+      // Items with a parseable size first (by unit price), the rest after by sticker price.
+      return list.sort((a, b) => {
+        if (a.unitPrice && b.unitPrice) return a.unitPrice.value - b.unitPrice.value;
+        if (a.unitPrice) return -1;
+        if (b.unitPrice) return 1;
+        return a.price - b.price;
+      });
     }
     return list.sort((a, b) => a.site.localeCompare(b.site));
   }, [products, sortBy]);
@@ -319,7 +302,19 @@ export default function GroceryPage() {
           </div>
         )}
 
-        {!loading && products.length === 0 && hasSearched && !error && (
+        {hasSearched && failures.length > 0 && (
+          <div className="mt-6 bg-amber-50 border-2 border-amber-300 text-amber-900 px-4 py-3 rounded-xl font-semibold text-sm text-center shadow-sm">
+            Couldn&apos;t reach {failures.map((f) => f.retailer).join(", ")} this time, so results may be missing. Give it another go in a sec.
+          </div>
+        )}
+
+        {hasSearched && ignoredStore && (
+          <div className="mt-4 bg-slate-50 border border-slate-300 text-slate-700 px-4 py-2 rounded-xl text-xs font-semibold text-center">
+            I don&apos;t search &quot;{ignoredStore}&quot;, so I checked all the stores instead.
+          </div>
+        )}
+
+        {!loading && products.length === 0 && hasSearched && !error && failures.length === 0 && (
           <div className="mt-8 text-center py-10 bg-white/80 backdrop-blur-sm rounded-2xl border-2 border-dashed border-emerald-200 shadow-sm max-w-lg mx-auto">
             <p className="text-slate-600 font-bold">
               Nothing popped up for that grocery item, bro.
@@ -431,6 +426,14 @@ export default function GroceryPage() {
               </button>
               <button
                 type="button"
+                onClick={() => setSortBy("unit")}
+                aria-pressed={sortBy === "unit"}
+                className={`px-3 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:ring-offset-1 ${sortBy === "unit" ? "bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-sm" : "text-slate-600 hover:text-slate-900"}`}
+              >
+                Best Unit Price
+              </button>
+              <button
+                type="button"
                 onClick={() => setSortBy("store")}
                 aria-pressed={sortBy === "store"}
                 className={`px-3 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:ring-offset-1 ${sortBy === "store" ? "bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-sm" : "text-slate-600 hover:text-slate-900"}`}
@@ -497,6 +500,12 @@ export default function GroceryPage() {
                           {product.currency || "NZD"}
                         </span>
                       </div>
+                      {product.unitPrice && (
+                        <p className="mt-1 text-xs font-bold text-slate-500">
+                          ${product.unitPrice.value.toFixed(2)} per {product.unitPrice.per}
+                          {product.size ? ` · ${product.size}` : ""}
+                        </p>
+                      )}
                     </div>
 
                     {product.url && (

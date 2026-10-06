@@ -38,48 +38,34 @@ ChoiceBro is an intelligent, real-time price comparison engine designed specific
 ```text
 choice_bro/
 ├── app/
-│   ├── api/
-│   │   ├── chat/                  # Tech Gemini AI parser
-│   │   │   └── route.ts
-│   │   ├── search/                # Tech scrapers orchestrator
-│   │   │   └── route.ts
-│   │   ├── verdict/               # Tech Gemini deal review
-│   │   │   └── route.ts
-│   │   └── grocery/               # Grocery Shop Sub-System
-│   │       ├── chat/              # Grocery Gemini AI parser
-│   │       │   └── route.ts
-│   │       ├── search/            # Grocery scrapers orchestrator
-│   │       │   └── route.ts
-│   │       └── verdict/           # Grocery Gemini deal review
-│   │           └── route.ts
-│   ├── grocery/                   # Grocery Dashboard Frontend UI
-│   │   └── page.tsx
-│   ├── globals.css                # Global stylesheet & animations
-│   ├── layout.tsx                 # Site layout with SVG navigation header
-│   ├── page.tsx                   # Tech Deals Frontend UI
-│   └── icon.svg                   # Vector site icon
+│   ├── api/                       # Thin route files: each delegates to lib/api/handlers.ts
+│   │   ├── chat/ search/ verdict/             # Tech
+│   │   └── grocery/{chat,search,verdict}/     # Grocery
+│   ├── grocery/page.tsx           # Grocery UI
+│   ├── page.tsx                   # Tech UI
+│   └── layout.tsx, globals.css, icon.svg
 ├── lib/
-│   ├── scrapers/                  # Puppeteer Web Scrapers
-│   │   ├── pbtech.ts
-│   │   ├── jbhifi.ts
-│   │   ├── harveyNorman.ts
-│   │   ├── woolworths.ts
-│   │   ├── paknsave.ts
-│   │   └── newworld.ts
-│   ├── utils/
-│   │   ├── fileCache.ts           # Segmented JSON cache engine
-│   │   ├── retry.ts               # Resilient scrape action retry utility
-│   │   ├── scraper-helpers.ts     # Evasion configurations & resource blockers
-│   │   └── timeout.ts             # Orchestrator timeout limits wrapper
-│   ├── browser.ts                 # Shared Puppeteer instance initializer
-│   ├── orchestrator.ts            # Tech search coordinator
-│   ├── groceryOrchestrator.ts     # Grocery search coordinator
-│   └── types.ts                   # Unified typescript declarations
-├── .cache/                        # Local file-cache directory (auto-created)
-├── public/                        # Static site assets
-├── package.json
-└── tsconfig.json
+│   ├── api/handlers.ts            # chat / search / verdict handlers, parametrised by category
+│   ├── ai.ts                      # Gemini query parsing + verdicts (prompts per category)
+│   ├── retailers.ts               # Retailer registry: URLs, ready-checks, deadlines, store aliases
+│   ├── scrape.ts                  # Runs one retailer: Puppeteer -> HTML -> extractor -> Product[]
+│   ├── scrapers/extractors.ts     # Pure HTML extractors (unit-tested against fixtures)
+│   ├── search.ts                  # Per-retailer cache, in-flight dedupe, filtering, failure reporting
+│   ├── filters.ts                 # Grocery brand-keyword filter
+│   ├── browser.ts                 # Shared Chromium + bounded page pool (SCRAPER_MAX_PAGES, default 4)
+│   ├── types.ts
+│   └── utils/                     # fileCache, retry, timeout (deadline + abort), semaphore, price, units
+└── package.json
 ```
+
+**Adding a retailer:** write an extractor in `lib/scrapers/extractors.ts`, add an entry to
+`RETAILERS` in `lib/retailers.ts`, and add a fixture + test. Nothing else needs to change.
+
+**Behaviour notes**
+* Cache is per retailer + query (4h TTL). Only *successful* scrapes are cached, so a blocked scrape is retried next time rather than served stale; a retailer that failed shows up as a warning in the UI.
+* Each scrape has a hard deadline; on timeout its page is closed, not left running.
+* `maxPrice` and store filtering happen server-side. Grocery results include a best-effort unit price parsed from the title.
+* Tests: `npm test`. Fixtures in `lib/scrapers/__fixtures__/` are hand-written; see the README there.
 
 ---
 
