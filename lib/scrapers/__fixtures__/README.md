@@ -1,5 +1,7 @@
 # Fixtures
 
+`woolworths.html` is **real markup** captured from woolworths.co.nz (trimmed to a few tiles). The others below are hand-written approximations.
+
 These HTML files are **hand-written approximations** built from the CSS selectors
 the scrapers used, not captures of the live sites. They pin down the extraction
 logic (price parsing, URL resolution, skipping incomplete cards) but cannot tell

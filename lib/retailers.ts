@@ -83,8 +83,8 @@ export const RETAILERS: Retailer[] = [
     searchUrl: (q) => `https://www.woolworths.co.nz/shop/search/products?search=${enc(q)}`,
     gotoTimeout: 15000,
     ready: {
-      // "(^|\D)0 products" so that "10 Products" doesn't count as "no results".
-      expression: `document.querySelector(".product-entry") !== null || /(^|\\D)0\\s+(products|items)/i.test(document.body.textContent || "")`,
+      // Product tiles use hashed CSS-module classes, so match the stable prefix.
+      expression: `document.querySelector('[class*="product-grid_productTileCell"]') !== null || /(^|\\D)0\\s+(products|items)|no (products|results)/i.test(document.body.textContent || "")`,
       timeout: 20000,
     },
     settleMs: 2000,
