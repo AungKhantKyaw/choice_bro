@@ -36,7 +36,8 @@ export async function getBrowser(): Promise<Browser> {
   if (!launching) {
     launching = puppeteer
       .launch({
-        headless: true,
+        // SCRAPER_HEADFUL=1 shows the browser window, handy for sites that block headless Chrome.
+        headless: process.env.SCRAPER_HEADFUL !== "1",
         args: ["--no-sandbox", "--disable-setuid-sandbox"],
       })
       .then((b) => {

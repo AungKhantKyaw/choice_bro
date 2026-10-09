@@ -73,17 +73,33 @@ describe("extractHarveyNorman", () => {
 describe("extractWoolworths", () => {
   const items = extractWoolworths(load("woolworths.html"), 24);
 
-  it("reads the aria-label price", () => {
-    expect(items[0]).toMatchObject({ title: "Pams Butter Salted 500g", price: 8.19 });
-    expect(items[0].url).toBe("https://www.woolworths.co.nz/shop/productdetails?stockcode=1&name=pams-butter");
+  it("reads title, price and absolute URL from a real product tile", () => {
+    expect(items[0]).toEqual({
+      title: "Woolworths Fresh Broccoli Head",
+      price: 2,
+      url: "https://www.woolworths.co.nz/shop/product-details/281082/woolworths-fresh-broccoli-head",
+    });
   });
 
-  it("falls back to dollars + cents elements", () => {
-    expect(items[1].price).toBe(9.49);
+  it("parses the other captured tiles, including a per-kg deli price", () => {
+    expect(items.map((i) => [i.title, i.price])).toEqual([
+      ["Woolworths Fresh Broccoli Head", 2],
+      ["Woolworths Frozen Broccoli Florets 450g Bag", 3.5],
+      ["Wattie's Mixed Vegetables Broccoli & Cauliflower Medley 650g", 5.99],
+      ["Woolworths Instore Deli Fresh Salad Broccoli & Cranberry", 34.9], // sold per kg
+    ]);
   });
 
-  it("skips cards without a link or price", () => {
-    expect(items).toHaveLength(2);
+  it("skips tiles without a price", () => {
+    expect(items.some((i) => i.title === "Out Of Stock Broccoli")).toBe(false);
+    expect(items).toHaveLength(4);
+  });
+
+  it("ignores the hashed suffix on class names", () => {
+    const doc = parseHTML(
+      `<div class="product-grid_productTileCell__ZZZZZ"><a class="product-tile_description__ZZZZZ" href="/shop/product-details/1/x">X</a><span class="product-price_value__ZZZZZ">$1.50</span></div>`,
+    ).document as unknown as Document;
+    expect(extractWoolworths(doc, 24)).toHaveLength(1);
   });
 });
 

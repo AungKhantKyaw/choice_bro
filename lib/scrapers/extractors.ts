@@ -70,30 +70,24 @@ export function extractHarveyNorman(doc: Document, max: number): RawProduct[] {
   return items;
 }
 
+/**
+ * Woolworths NZ (Next.js storefront). Class names are CSS-module hashes
+ * ("product-tile_description__jfRLo"), so we match on the stable prefix
+ * and ignore the hash suffix, which changes on every site build.
+ */
 export function extractWoolworths(doc: Document, max: number): RawProduct[] {
   const base = "https://www.woolworths.co.nz";
   const items: RawProduct[] = [];
 
-  for (const card of Array.from(doc.querySelectorAll(".product-entry"))) {
+  for (const card of Array.from(doc.querySelectorAll('[class*="product-grid_productTileCell"]'))) {
     if (items.length >= max) break;
 
-    const title = clean(card.querySelector('h3[id*="-title"]')?.textContent);
-
-    // Price: aria-label like "$8.19 each." with an <em>dollars</em><span>cents</span> fallback.
-    let price = 0;
-    const priceElem = card.querySelector("h3.presentPrice");
-    if (priceElem) {
-      price = parsePrice(priceElem.getAttribute("aria-label"));
-      if (!price) {
-        const dollars = card.querySelector("h3.presentPrice em")?.textContent?.trim() || "";
-        const cents = (card.querySelector("h3.presentPrice span")?.textContent || "").replace(/[^0-9]/g, "");
-        const parsed = parseFloat(`${dollars}.${cents || "00"}`);
-        if (!isNaN(parsed)) price = parsed;
-      }
-    }
-
-    const href = card.querySelector('a[href*="productdetails"]')?.getAttribute("href");
-    const url = absUrl(href, base);
+    const title = clean(
+      card.querySelector('a[class*="product-tile_description"]')?.textContent ||
+        card.querySelector('a[class*="product-tile_productImageLink"] img')?.getAttribute("alt"),
+    );
+    const price = parsePrice(card.querySelector('[class*="product-price_value"]')?.textContent);
+    const url = absUrl(card.querySelector('a[href*="/shop/product-details/"]')?.getAttribute("href"), base);
 
     if (title && price > 0 && url) items.push({ title, price, url });
   }
