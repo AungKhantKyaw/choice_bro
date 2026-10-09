@@ -85,7 +85,7 @@ export const RETAILERS: Retailer[] = [
     ready: {
       // "(^|\D)0 products" so that "10 Products" doesn't count as "no results".
       expression: `document.querySelector(".product-entry") !== null || /(^|\\D)0\\s+(products|items)/i.test(document.body.textContent || "")`,
-      timeout: 30000,
+      timeout: 20000,
     },
     settleMs: 2000,
     deadlineMs: 45000,
