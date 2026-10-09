@@ -80,7 +80,7 @@ export const RETAILERS: Retailer[] = [
     name: "Woolworths",
     category: "grocery",
     aliases: ["countdown"],
-    searchUrl: (q) => `https://www.woolworths.co.nz/shop/searchproducts?search=${enc(q)}`,
+    searchUrl: (q) => `https://www.woolworths.co.nz/shop/search/products?search=${enc(q)}`,
     gotoTimeout: 15000,
     ready: {
       // "(^|\D)0 products" so that "10 Products" doesn't count as "no results".
